@@ -1,47 +1,55 @@
 package com.anyamod.entity;
 
-import net.minecraft.entity.EntityAgeable;
+import net.minecraft.entity.EntityCreature;
+import net.minecraft.entity.SharedMonsterAttributes;
+import net.minecraft.entity.ai.EntityAILookIdle;
+import net.minecraft.entity.ai.EntityAISwimming;
+import net.minecraft.entity.ai.EntityAIWanderAvoidWater;
+import net.minecraft.entity.ai.EntityAIWatchClosest;
 import net.minecraft.entity.player.EntityPlayer;
-import net.minecraft.entity.passive.EntityVillager;
 import net.minecraft.util.EnumHand;
 import net.minecraft.world.World;
 
 /**
- * ЗАГОТОВКА моба "Anya".
- * Поки що це просто житель (модель/анімації/AI успадковані від EntityVillager).
+ * Моб "Anya".
+ * Базується на EntityCreature (базовий "живий" моб з пересуванням),
+ * а не на EntityVillager - тому немає торгівлі, розмноження,
+ * втечі від зомбі та іншої поведінки жителя.
+ * Рендериться моделлю гравця через RenderAnya (див. proxy/RenderAnya.java).
  * Текст ніка живе окремо в AnyaNameTag.java.
- *
- * У майбутньому:
- *  - замінити super-клас або рендер на кастомну модель
- *  - прибрати/змінити торгівлю (зараз вимкнена через processInteract)
- *  - додати власний AI/діалоги
  */
-public class EntityAnya extends EntityVillager {
+public class EntityAnya extends EntityCreature {
 
     public EntityAnya(World worldIn) {
         super(worldIn);
+        this.setSize(0.6F, 1.95F); // розміри як у гравця
         this.setCustomNameTag(AnyaNameTag.NAME);
         this.setAlwaysRenderNameTag(true);
-        // Прибираємо професію-специфічний вигляд (одяг), лишаємо базову модель жителя
-        this.setProfession(0);
+    }
+
+    @Override
+    protected void applyEntityAI() {
+        this.tasks.addTask(0, new EntityAISwimming(this));
+        this.tasks.addTask(1, new EntityAIWatchClosest(this, EntityPlayer.class, 8.0F));
+        this.tasks.addTask(2, new EntityAIWanderAvoidWater(this, 0.6D));
+        this.tasks.addTask(3, new EntityAILookIdle(this));
+    }
+
+    @Override
+    protected void applyEntityAttributes() {
+        super.applyEntityAttributes();
+        this.getEntityAttribute(SharedMonsterAttributes.MOVEMENT_SPEED).setBaseValue(0.25D);
     }
 
     @Override
     public boolean getAlwaysRenderNameTagForRender() {
-        // Явний override гарантує, що нік видно завжди (як у гравця),
-        // а не тільки коли хрестик наведено на моба.
         return true;
     }
 
     @Override
     public boolean processInteract(EntityPlayer player, EnumHand hand) {
-        // Заготовка: правий клік нічого не робить (торгівля вимкнена),
+        // Заготовка: правий клік нічого не робить,
         // щоб не заважало майбутній кастомній логіці NPC.
         return true;
-    }
-
-    @Override
-    public EntityVillager createChild(EntityAgeable ageable) {
-        return null;
     }
 }
