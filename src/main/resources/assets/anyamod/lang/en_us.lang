@@ -1,0 +1,8 @@
+# Назва креативної вкладки (та сама, що зараз показує "itemGroup.anyamodTab")
+itemGroup.anyamodTab=Anya Mod
+
+# Назва предмета-яйця в інвентарі/тултипі
+item.anyamod.anya_spawn_egg.name=Spawn Anya
+
+# Назва сутності (F3, дефолтний підпис якщо custom name прибрати)
+entity.anyamod.anya.name=Anya
