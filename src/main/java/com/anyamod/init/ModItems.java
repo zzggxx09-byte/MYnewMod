@@ -21,8 +21,8 @@ public class ModItems {
     public static void registerItems(RegistryEvent.Register<Item> event) {
         ANYA_SPAWN_EGG = new ItemMonsterPlacer(
                 ModEntities.ANYA_ENTRY,
-                ModEntities.ANYA_ENTRY.getEgg().getPrimaryColor(),
-                ModEntities.ANYA_ENTRY.getEgg().getSecondaryColor()
+                ModEntities.ANYA_ENTRY.getEgg().primaryColor,
+                ModEntities.ANYA_ENTRY.getEgg().secondaryColor
         );
         ANYA_SPAWN_EGG.setRegistryName(AnyaMod.MODID, "anya_spawn_egg");
         ANYA_SPAWN_EGG.setUnlocalizedName(AnyaMod.MODID + ".anya_spawn_egg");
