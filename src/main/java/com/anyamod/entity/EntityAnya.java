@@ -28,7 +28,7 @@ public class EntityAnya extends EntityCreature {
     }
 
     @Override
-    protected void applyEntityAI() {
+    protected void initEntityAI() {
         this.tasks.addTask(0, new EntityAISwimming(this));
         this.tasks.addTask(1, new EntityAIWatchClosest(this, EntityPlayer.class, 8.0F));
         this.tasks.addTask(2, new EntityAIWanderAvoidWater(this, 0.6D));
