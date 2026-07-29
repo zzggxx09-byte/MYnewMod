@@ -2,15 +2,14 @@ package com.anyamod.entity;
 
 import net.minecraft.entity.EntityAgeable;
 import net.minecraft.entity.player.EntityPlayer;
-import net.minecraft.util.EnumHand;
-import net.minecraft.util.text.TextFormatting;
-import net.minecraft.world.World;
 import net.minecraft.entity.passive.EntityVillager;
+import net.minecraft.util.EnumHand;
+import net.minecraft.world.World;
 
 /**
  * ЗАГОТОВКА моба "Anya".
- * Поки що це просто житель (модель/анімації/AI успадковані від EntityVillager),
- * з примусовим ніком "Anya" над головою.
+ * Поки що це просто житель (модель/анімації/AI успадковані від EntityVillager).
+ * Текст ніка живе окремо в AnyaNameTag.java.
  *
  * У майбутньому:
  *  - замінити super-клас або рендер на кастомну модель
@@ -21,10 +20,17 @@ public class EntityAnya extends EntityVillager {
 
     public EntityAnya(World worldIn) {
         super(worldIn);
-        this.setCustomNameTag(TextFormatting.AQUA + "Anya");
+        this.setCustomNameTag(AnyaNameTag.NAME);
         this.setAlwaysRenderNameTag(true);
         // Прибираємо професію-специфічний вигляд (одяг), лишаємо базову модель жителя
         this.setProfession(0);
+    }
+
+    @Override
+    public boolean getAlwaysRenderNameTagForRender() {
+        // Явний override гарантує, що нік видно завжди (як у гравця),
+        // а не тільки коли хрестик наведено на моба.
+        return true;
     }
 
     @Override
