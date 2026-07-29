@@ -1,0 +1,8 @@
+# Назва креативної вкладки
+itemGroup.anyamodTab=Моя анна
+
+# Назва предмета-яйця в інвентарі/тултипі
+item.anyamod.anya_spawn_egg.name=Заспавнити Anya
+
+# Назва сутності
+entity.anyamod.anya.name=Аня
