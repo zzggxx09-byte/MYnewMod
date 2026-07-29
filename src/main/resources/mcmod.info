@@ -1,0 +1,14 @@
+[
+  {
+    "modid": "anyamod",
+    "name": "Anya Mod",
+    "description": "Заготовка кастомного моба Anya на базі жителя, з ніком та яйцем спавну.",
+    "version": "1.0.0",
+    "mcversion": "1.12.2",
+    "authorList": ["you"],
+    "credits": "",
+    "logoFile": "",
+    "screenshots": [],
+    "dependencies": []
+  }
+]
