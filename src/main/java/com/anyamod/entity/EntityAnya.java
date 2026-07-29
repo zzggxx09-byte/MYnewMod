@@ -1,6 +1,6 @@
 package com.anyamod.entity;
 
-import net.minecraft.entity.EntityLivingBase;
+import net.minecraft.entity.EntityAgeable;
 import net.minecraft.entity.player.EntityPlayer;
 import net.minecraft.util.EnumHand;
 import net.minecraft.util.text.TextFormatting;
@@ -28,24 +28,14 @@ public class EntityAnya extends EntityVillager {
     }
 
     @Override
-    protected boolean processInteract(EntityPlayer player, EnumHand hand) {
+    public boolean processInteract(EntityPlayer player, EnumHand hand) {
         // Заготовка: правий клік нічого не робить (торгівля вимкнена),
         // щоб не заважало майбутній кастомній логіці NPC.
         return true;
     }
 
     @Override
-    public boolean canMate() {
-        return false;
-    }
-
-    @Override
-    public boolean canBreed() {
-        return false;
-    }
-
-    @Override
-    public EntityVillager createChild(EntityLivingBase ageable) {
+    public EntityVillager createChild(EntityAgeable ageable) {
         return null;
     }
 }
