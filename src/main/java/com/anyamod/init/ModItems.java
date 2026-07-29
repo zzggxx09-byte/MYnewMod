@@ -1,26 +1,24 @@
 package com.anyamod.init;
 
 import com.anyamod.AnyaMod;
+import com.anyamod.item.ItemAnyaSpawnEgg;
 import net.minecraft.item.Item;
-import net.minecraft.item.ItemMonsterPlacer;
 import net.minecraftforge.event.RegistryEvent;
 import net.minecraftforge.fml.common.Mod;
 import net.minecraftforge.fml.common.eventhandler.SubscribeEvent;
 
 /**
- * Відповідає ТІЛЬКИ за предмет "яйце спавну Anya".
- * Раніше .egg(...) в EntityEntryBuilder лише зберігав кольори,
- * а сам предмет ніде не реєструвався - тому яйця не було у творчому інвентарі.
+ * Відповідає ТІЛЬКИ за реєстрацію предмета "яйце спавну Anya".
+ * Сам клас предмета живе окремо в com.anyamod.item.ItemAnyaSpawnEgg.
  */
 @Mod.EventBusSubscriber(modid = AnyaMod.MODID)
 public class ModItems {
 
-    public static Item ANYA_SPAWN_EGG;
+    public static ItemAnyaSpawnEgg ANYA_SPAWN_EGG;
 
     @SubscribeEvent
     public static void registerItems(RegistryEvent.Register<Item> event) {
-        ANYA_SPAWN_EGG = new ItemMonsterPlacer(
-                ModEntities.ANYA_ENTRY,
+        ANYA_SPAWN_EGG = new ItemAnyaSpawnEgg(
                 ModEntities.ANYA_ENTRY.getEgg().primaryColor,
                 ModEntities.ANYA_ENTRY.getEgg().secondaryColor
         );
