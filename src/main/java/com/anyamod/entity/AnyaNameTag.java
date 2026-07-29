@@ -8,7 +8,7 @@ import net.minecraft.util.text.TextFormatting;
  */
 public final class AnyaNameTag {
 
-    public static final String NAME = TextFormatting.AQUA + "Anya";
+    public static final String NAME = TextFormatting.DARK_PURPLE + "Anya";
 
     private AnyaNameTag() {
     }
