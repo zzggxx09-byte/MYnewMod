@@ -7,16 +7,11 @@ import net.minecraft.util.EnumHand;
 
 import java.util.List;
 
-/**
- * Аня НЕ переслідує ворогів. Вона реагує, тільки коли ворожий моб
- * опинився впритул (наче загнав її в кут) - б'є один раз, відкидає
- * і одразу дозволяє EntityAIAvoidEntity знову тікати.
- */
 public class EntityAICounterAttack extends EntityAIBase {
 
     private static final double TRIGGER_RANGE = 1.7D;
     private static final double KEEP_RANGE = 2.2D;
-    private static final int COOLDOWN_TICKS = 20;
+    private static final int COOLDOWN_TICKS = 13;
 
     private final EntityAnya anya;
     private EntityMob target;
@@ -24,14 +19,11 @@ public class EntityAICounterAttack extends EntityAIBase {
 
     public EntityAICounterAttack(EntityAnya anya) {
         this.anya = anya;
-        this.setMutexBits(3); // move + look - перебиває втечу на момент удару
+        this.setMutexBits(3);
     }
 
     @Override
     public boolean shouldExecute() {
-        if (this.cooldown > 0) {
-            this.cooldown--;
-        }
         List<EntityMob> nearby = this.anya.world.getEntitiesWithinAABB(EntityMob.class,
                 this.anya.getEntityBoundingBox().grow(TRIGGER_RANGE));
         for (EntityMob mob : nearby) {
@@ -51,6 +43,12 @@ public class EntityAICounterAttack extends EntityAIBase {
 
     @Override
     public void updateTask() {
+        // ЗМІНЕНО: кулдаун тепер тікає щотік, поки таск виконується,
+        // а не тільки між запусками shouldExecute().
+        if (this.cooldown > 0) {
+            this.cooldown--;
+        }
+
         this.anya.getLookHelper().setLookPositionWithEntity(this.target, 30.0F, 30.0F);
 
         if (this.cooldown <= 0) {
