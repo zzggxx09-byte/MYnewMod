@@ -10,10 +10,11 @@ import net.minecraft.util.math.Vec3d;
 import java.util.List;
 
 /**
- * Anya дивиться точно в очі гравцю, якщо гравець дивиться саме на її голову
- * (перевірка через raytrace-перетин з хітбоксом голови, а не просто "в бік").
+ * Anya дивиться точно в очі гравцю, якщо гравець дивиться на будь-яку
+ * частину її тіла (перевірка через raytrace-перетин з усім хітбоксом,
+ * а не лише головою - хрестик рідко потрапляє саме на голову).
  *
- * "Пам'ять контакту" (MEMORY_TICKS) - якщо хрестик на мить зіслизнув з голови,
+ * "Пам'ять контакту" (MEMORY_TICKS) - якщо хрестик на мить зіслизнув,
  * контакт не переривається одразу, а тримається ще якийсь час. Без цього
  * погляд Ані смикався б туди-сюди при щонайменшому тремтінні камери гравця.
  */
@@ -21,9 +22,9 @@ public class EntityAIEyeContact extends EntityAIBase {
 
     private static final double LOOK_RANGE = 8.0D;
     private static final double PLAYER_REACH = 8.0D;
-    private static final double HEAD_HITBOX_PADDING = 0.15D;
+    private static final double BODY_HITBOX_PADDING = 0.1D;
 
-    // Скільки тіків тримати контакт після того, як хрестик пішов з голови (10 тіків = 0.5 сек)
+    // Скільки тіків тримати контакт після того, як хрестик пішов з Ані (10 тіків = 0.5 сек)
     private static final int MEMORY_TICKS = 10;
 
     private final EntityAnya anya;
@@ -41,7 +42,7 @@ public class EntityAIEyeContact extends EntityAIBase {
                 EntityPlayer.class, this.anya.getEntityBoundingBox().grow(LOOK_RANGE));
 
         for (EntityPlayer player : nearby) {
-            if (isPlayerLookingAtHead(player)) {
+            if (isPlayerLookingAtAnya(player)) {
                 this.lookingPlayer = player;
                 this.contactMemory = MEMORY_TICKS;
                 return true;
@@ -50,19 +51,16 @@ public class EntityAIEyeContact extends EntityAIBase {
         return false;
     }
 
-    private boolean isPlayerLookingAtHead(EntityPlayer player) {
+    private boolean isPlayerLookingAtAnya(EntityPlayer player) {
         Vec3d eyePos = player.getPositionEyes(1.0F);
         Vec3d look = player.getLook(1.0F);
         Vec3d endPos = eyePos.add(look.scale(PLAYER_REACH));
 
-        // Приблизна позиція голови Ані - трохи нижче верху хітбокса сутності
-        double headY = this.anya.posY + this.anya.height - 0.25D;
-        AxisAlignedBB headBox = new AxisAlignedBB(
-                this.anya.posX - HEAD_HITBOX_PADDING, headY - HEAD_HITBOX_PADDING, this.anya.posZ - HEAD_HITBOX_PADDING,
-                this.anya.posX + HEAD_HITBOX_PADDING, headY + HEAD_HITBOX_PADDING, this.anya.posZ + HEAD_HITBOX_PADDING
-        );
+        // Тепер перевіряємо ВЕСЬ хітбокс сутності (не тільки голову) -
+        // хрестиком у тулуб/руку/ногу теж рахується як "дивиться на Аню".
+        AxisAlignedBB bodyBox = this.anya.getEntityBoundingBox().grow(BODY_HITBOX_PADDING);
 
-        RayTraceResult result = headBox.calculateIntercept(eyePos, endPos);
+        RayTraceResult result = bodyBox.calculateIntercept(eyePos, endPos);
         return result != null;
     }
 
@@ -71,21 +69,17 @@ public class EntityAIEyeContact extends EntityAIBase {
         if (this.lookingPlayer == null || !this.lookingPlayer.isEntityAlive()) {
             return false;
         }
-        // Продовжуємо, поки є пам'ять контакту, навіть якщо хрестик щойно зіслизнув
         return this.contactMemory > 0;
     }
 
     @Override
     public void updateTask() {
-        if (isPlayerLookingAtHead(this.lookingPlayer)) {
-            // Хрестик знову (чи досі) на голові - оновлюємо пам'ять до максимуму
+        if (isPlayerLookingAtAnya(this.lookingPlayer)) {
             this.contactMemory = MEMORY_TICKS;
         } else {
-            // Хрестик зіслизнув - витрачаємо пам'ять, але погляд поки тримаємо
             this.contactMemory--;
         }
 
-        // Дивиться саме в очі, а не просто "в голову" - тому й беремо eye position
         Vec3d eyePos = this.lookingPlayer.getPositionEyes(1.0F);
         this.anya.getLookHelper().setLookPosition(eyePos.x, eyePos.y, eyePos.z, 10.0F, 10.0F);
     }
@@ -95,4 +89,4 @@ public class EntityAIEyeContact extends EntityAIBase {
         this.lookingPlayer = null;
         this.contactMemory = 0;
     }
-          }
+        }
