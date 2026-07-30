@@ -2,15 +2,10 @@ package com.anyamod.entity;
 
 import net.minecraft.client.model.ModelBase;
 import net.minecraft.client.model.ModelRenderer;
+import net.minecraft.client.renderer.GlStateManager;
 import net.minecraft.entity.Entity;
 import net.minecraft.util.math.MathHelper;
 
-/**
- * Кастомна гуманоїдна модель під текстуру 128x128 (замість 64x64 у ModelPlayer).
- * Геометрія і UV подвоєні, а фактичний розмір на екрані компенсується
- * масштабом 0.5F у RenderAnya.preRenderCallback - тому зріст персонажа
- * не змінюється, зростає лише деталізація текстури.
- */
 public class ModelAnyaHD extends ModelBase {
 
     public final ModelRenderer bipedHead;
@@ -32,14 +27,15 @@ public class ModelAnyaHD extends ModelBase {
         this.bipedBody.addBox(-8.0F, 0.0F, -4.0F, 16, 24, 8, 0.0F);
         this.bipedBody.setRotationPoint(0.0F, 0.0F, 0.0F);
 
+        // Руки Alex (slim): ширина 6 (замість 8 у Steve), rotation point Y = 5.0 (замість 4.0)
         this.bipedRightArm = new ModelRenderer(this, 80, 32);
-        this.bipedRightArm.addBox(-6.0F, -4.0F, -4.0F, 8, 24, 8, 0.0F);
-        this.bipedRightArm.setRotationPoint(-10.0F, 4.0F, 0.0F);
+        this.bipedRightArm.addBox(-4.0F, -4.0F, -4.0F, 6, 24, 8, 0.0F);
+        this.bipedRightArm.setRotationPoint(-10.0F, 5.0F, 0.0F);
 
         this.bipedLeftArm = new ModelRenderer(this, 80, 32);
         this.bipedLeftArm.mirror = true;
-        this.bipedLeftArm.addBox(-2.0F, -4.0F, -4.0F, 8, 24, 8, 0.0F);
-        this.bipedLeftArm.setRotationPoint(10.0F, 4.0F, 0.0F);
+        this.bipedLeftArm.addBox(-2.0F, -4.0F, -4.0F, 6, 24, 8, 0.0F);
+        this.bipedLeftArm.setRotationPoint(10.0F, 5.0F, 0.0F);
 
         this.bipedRightLeg = new ModelRenderer(this, 0, 32);
         this.bipedRightLeg.addBox(-4.0F, 0.0F, -4.0F, 8, 24, 8, 0.0F);
@@ -54,12 +50,18 @@ public class ModelAnyaHD extends ModelBase {
     @Override
     public void render(Entity entityIn, float limbSwing, float limbSwingAmount, float ageInTicks, float netHeadYaw, float headPitch, float scale) {
         this.setRotationAngles(limbSwing, limbSwingAmount, ageInTicks, netHeadYaw, headPitch, scale, entityIn);
+
+        // Масштаб застосовуємо ТУТ, а не в preRenderCallback -
+        // так фіксований підйом моделі (-1.501) рушій виконує в повну силу.
+        GlStateManager.pushMatrix();
+        GlStateManager.scale(0.5F, 0.5F, 0.5F);
         this.bipedHead.render(scale);
         this.bipedBody.render(scale);
         this.bipedRightArm.render(scale);
         this.bipedLeftArm.render(scale);
         this.bipedRightLeg.render(scale);
         this.bipedLeftLeg.render(scale);
+        GlStateManager.popMatrix();
     }
 
     public void setRotationAngles(float limbSwing, float limbSwingAmount, float ageInTicks, float netHeadYaw, float headPitch, float scaleFactor, Entity entityIn) {
