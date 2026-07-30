@@ -1,0 +1,22 @@
+{
+  "entity.anya.ambient": {
+    "category": "neutral",
+    "subtitle": "Anya hums",
+    "sounds": [
+      "anyamod:entity/anya/ambient1",
+      "anyamod:entity/anya/ambient2",
+      "anyamod:entity/anya/ambient3",
+      "anyamod:entity/anya/ambient4",
+      "anyamod:entity/anya/ambient5"
+    ]
+  },
+  "entity.anya.hurt": {
+    "category": "neutral",
+    "subtitle": "Anya hurt",
+    "sounds": [
+      "anyamod:entity/anya/hurt1",
+      "anyamod:entity/anya/hurt2",
+      "anyamod:entity/anya/hurt3"
+    ]
+  }
+}
