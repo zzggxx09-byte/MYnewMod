@@ -1,5 +1,6 @@
 package com.anyamod.entity;
 
+import com.anyamod.init.ModSounds;
 import net.minecraft.entity.EntityCreature;
 import net.minecraft.entity.SharedMonsterAttributes;
 import net.minecraft.entity.ai.EntityAILookIdle;
@@ -7,25 +8,17 @@ import net.minecraft.entity.ai.EntityAISwimming;
 import net.minecraft.entity.ai.EntityAIWanderAvoidWater;
 import net.minecraft.entity.ai.EntityAIWatchClosest;
 import net.minecraft.entity.player.EntityPlayer;
-import net.minecraft.util.EnumHand;
-import net.minecraft.world.World;
-import com.anyamod.init.ModSounds;
 import net.minecraft.util.DamageSource;
+import net.minecraft.util.EnumHand;
 import net.minecraft.util.SoundEvent;
-/**
- * Моб "Anya".
- * Базується на EntityCreature (базовий "живий" моб з пересуванням),
- * а не на EntityVillager - тому немає торгівлі, розмноження,
- * втечі від зомбі та іншої поведінки жителя.
- * Рендериться моделлю гравця через RenderAnya (див. proxy/RenderAnya.java).
- * Текст ніка живе окремо в AnyaNameTag.java.
- */
+import net.minecraft.world.World;
+
 public class EntityAnya extends EntityCreature {
 
     public EntityAnya(World worldIn) {
         super(worldIn);
-        this.setSize(0.6F, 1.95F); // розміри як у гравця
-        this.setCustomNameTag(AnyaNameTag.NAME);
+        this.setSize(0.6F, 1.95F);
+        this.setCustomNameTag("Anya");
         this.setAlwaysRenderNameTag(true);
     }
 
@@ -44,30 +37,27 @@ public class EntityAnya extends EntityCreature {
     }
 
     @Override
+    protected SoundEvent getAmbientSound() {
+        return ModSounds.ANYA_AMBIENT;
+    }
+
+    @Override
+    protected SoundEvent getHurtSound(DamageSource damageSourceIn) {
+        return ModSounds.ANYA_HURT;
+    }
+
+    @Override
+    public int getTalkInterval() {
+        return 160; // Частота амбієнт-звуків (раз на 8 секунд)
+    }
+
+    @Override
     public boolean getAlwaysRenderNameTagForRender() {
         return true;
     }
 
     @Override
     public boolean processInteract(EntityPlayer player, EnumHand hand) {
-        // Заготовка: правий клік нічого не робить,
-        // щоб не заважало майбутній кастомній логіці NPC.
         return true;
-    }
-
-    @Override
-protected SoundEvent getAmbientSound() {
-    return ModSounds.ANYA_AMBIENT;
-    }
-
-    @Override
-protected SoundEvent getHurtSound(DamageSource damageSourceIn) {
-    return ModSounds.ANYA_HURT;
-    }
-
-@Override
-public int getTalkInterval() {
-    // Інтервал між амбієнт-звуками в тиках (80 тиків = 4 секунди паузи мінімум)
-    return 160; // 8 секунд
     }
 }
