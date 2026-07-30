@@ -9,7 +9,9 @@ import net.minecraft.entity.ai.EntityAIWatchClosest;
 import net.minecraft.entity.player.EntityPlayer;
 import net.minecraft.util.EnumHand;
 import net.minecraft.world.World;
-
+import com.anyamod.init.ModSounds;
+import net.minecraft.util.DamageSource;
+import net.minecraft.util.SoundEvent;
 /**
  * Моб "Anya".
  * Базується на EntityCreature (базовий "живий" моб з пересуванням),
@@ -51,5 +53,21 @@ public class EntityAnya extends EntityCreature {
         // Заготовка: правий клік нічого не робить,
         // щоб не заважало майбутній кастомній логіці NPC.
         return true;
+    }
+
+    @Override
+protected SoundEvent getAmbientSound() {
+    return ModSounds.ANYA_AMBIENT;
+    }
+
+    @Override
+protected SoundEvent getHurtSound(DamageSource damageSourceIn) {
+    return ModSounds.ANYA_HURT;
+    }
+
+@Override
+public int getTalkInterval() {
+    // Інтервал між амбієнт-звуками в тиках (80 тиків = 4 секунди паузи мінімум)
+    return 160; // 8 секунд
     }
 }
