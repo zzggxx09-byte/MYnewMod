@@ -12,6 +12,7 @@ import net.minecraft.util.DamageSource;
 import net.minecraft.util.EnumHand;
 import net.minecraft.util.SoundEvent;
 import net.minecraft.world.World;
+import com.anyamod.entity.ai.EntityAIEyeContact;
 
 public class EntityAnya extends EntityCreature {
 
@@ -25,12 +26,13 @@ public class EntityAnya extends EntityCreature {
     @Override
     protected void initEntityAI() {
         this.tasks.addTask(0, new EntityAISwimming(this));
-        this.tasks.addTask(1, new EntityAICounterAttack(this));
-        this.tasks.addTask(2, new EntityAIAvoidEntity<>(this, EntityMob.class, 8.0F, 1.0D, 1.2D));
-        this.tasks.addTask(3, new EntityAISeekShelterFromRain(this, 1.0D));
-        this.tasks.addTask(4, new EntityAIWatchClosest(this, EntityPlayer.class, 8.0F));
-        this.tasks.addTask(5, new EntityAIWanderAvoidWater(this, 0.6D));
-        this.tasks.addTask(6, new EntityAILookIdle(this));
+this.tasks.addTask(1, new EntityAICounterAttack(this));
+this.tasks.addTask(2, new EntityAIAvoidEntity<>(this, EntityMob.class, 8.0F, 1.0D, 1.2D));
+this.tasks.addTask(3, new EntityAIEyeContact(this));
+this.tasks.addTask(4, new EntityAISeekShelterFromRain(this, 1.0D));
+this.tasks.addTask(5, new EntityAIWatchClosest(this, EntityPlayer.class, 8.0F));
+this.tasks.addTask(6, new EntityAIWanderAvoidWater(this, 0.6D));
+this.tasks.addTask(7, new EntityAILookIdle(this));
         // targetTasks навмисно порожній - вона не переслідує, лише контратакує впритул
     }
 
