@@ -45,8 +45,16 @@ minecraft {
     }
 }
 
+repositories {
+    // GeckoLib - бібліотека анімацій, потрібна для майбутніх анімацій Anya
+    maven { url 'https://dl.cloudsmith.io/public/geckolib3/geckolib/maven/' }
+}
+
 dependencies {
     minecraft 'net.minecraftforge:forge:1.12.2-14.23.5.2859'
+
+    // GeckoLib - поки що НЕ використовується в коді, лише підключаємо бібліотеку заздалегідь
+    implementation 'software.bernie.geckolib:geckolib-forge-1.12.2:3.0.31'
 }
 
 processResources {
