@@ -1,5 +1,6 @@
 package com.anyamod.item;
 
+import com.anyamod.data.AnyaRespawnData;
 import com.anyamod.entity.EntityAnya;
 import net.minecraft.block.Block;
 import net.minecraft.block.state.IBlockState;
@@ -13,15 +14,6 @@ import net.minecraft.util.math.BlockPos;
 import net.minecraft.util.math.MathHelper;
 import net.minecraft.world.World;
 
-/**
- * Власний предмет "яйце спавну Anya".
- *
- * У 1.12.2 net.minecraft.item.ItemMonsterPlacer - це один спільний ванільний
- * предмет без конструктора під конкретну сутність, тому для мод-сутностей
- * пишеться свій клас яйця (стандартна практика для Forge 1.12.2).
- *
- * Колір (primary/secondary) використовується рендером у ClientProxy через IItemColor.
- */
 public class ItemAnyaSpawnEgg extends Item {
 
     private final int primaryColor;
@@ -48,7 +40,6 @@ public class ItemAnyaSpawnEgg extends Item {
         IBlockState iblockstate = worldIn.getBlockState(pos);
         Block block = iblockstate.getBlock();
 
-        // Клікнули по верхній грані - спавнимо над блоком, інакше - на грані, по якій клікнули
         BlockPos spawnPos = pos.offset(facing);
         double extraY = 0.0D;
 
@@ -62,7 +53,10 @@ public class ItemAnyaSpawnEgg extends Item {
         );
         worldIn.spawnEntity(entity);
 
+        // Ця точка стає домашньою - сюди Аня повернеться після смерті
+        AnyaRespawnData.get(worldIn).setHome(spawnPos);
+
         itemstack.shrink(1);
         return EnumActionResult.SUCCESS;
     }
-                                       }
+}
