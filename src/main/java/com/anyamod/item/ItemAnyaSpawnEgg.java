@@ -12,8 +12,18 @@ import net.minecraft.util.EnumFacing;
 import net.minecraft.util.EnumHand;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.util.math.MathHelper;
+import net.minecraft.util.text.TextComponentString;
+import net.minecraft.util.text.TextFormatting;
 import net.minecraft.world.World;
 
+/**
+ * Яйце спавну Anya
+ * 
+ * При використанні:
+ * 1. Спавниш Anya
+ * 2. Встановлюється точка дому (для респавну)
+ * 3. Anya отримує 5 живів
+ */
 public class ItemAnyaSpawnEgg extends Item {
 
     private final int primaryColor;
@@ -43,6 +53,7 @@ public class ItemAnyaSpawnEgg extends Item {
         BlockPos spawnPos = pos.offset(facing);
         double extraY = 0.0D;
 
+        // Спавниш саму Anya
         EntityAnya entity = new EntityAnya(worldIn);
         entity.setLocationAndAngles(
                 spawnPos.getX() + 0.5D,
@@ -53,10 +64,31 @@ public class ItemAnyaSpawnEgg extends Item {
         );
         worldIn.spawnEntity(entity);
 
-        // Ця точка стає домашньою - сюди Аня повернеться після смерті
-        AnyaRespawnData.get(worldIn).setHome(spawnPos);
+        // ========== ІНІЦІАЛІЗАЦІЯ ЖИТІВ ==========
+        
+        AnyaRespawnData respawnData = AnyaRespawnData.get(worldIn);
+        
+        // Встановлюємо дім (точка респавну)
+        respawnData.setHome(spawnPos);
+        
+        // Anya отримує 5 живів (максимум)
+        // Життя вже стартують з 5 за замовчуванням, але можна явно встановити
+        int startLives = respawnData.getMaxLives();
+        
+        // Broadcast в чат
+        String spawnMessage = TextFormatting.GREEN 
+            + "✓ Аня спавнена! ❤ " + startLives + "/" + startLives + " живів"
+            + TextFormatting.RESET;
+        
+        worldIn.getPlayers(EntityPlayer.class, p -> true)
+                .forEach(p -> p.sendMessage(new TextComponentString(spawnMessage)));
+        
+        System.out.println("[AnyaMod] Anya спавнена з домом в " + spawnPos);
+        System.out.println("[AnyaMod] Anya має " + startLives + " живів");
 
+        // Видалити яйце зі стеку
         itemstack.shrink(1);
+        
         return EnumActionResult.SUCCESS;
     }
 }
