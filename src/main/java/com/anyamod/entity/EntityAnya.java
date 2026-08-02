@@ -9,32 +9,61 @@ import net.minecraft.entity.SharedMonsterAttributes;
 import net.minecraft.entity.ai.*;
 import net.minecraft.entity.monster.EntityMob;
 import net.minecraft.entity.player.EntityPlayer;
+import net.minecraft.nbt.NBTTagCompound;
 import net.minecraft.util.DamageSource;
 import net.minecraft.util.EnumHand;
 import net.minecraft.util.SoundEvent;
+import net.minecraft.util.math.BlockPos;
 import net.minecraft.world.World;
 
+/**
+ * Anya - кастомний моб з AI та системою 5 живів
+ * 
+ * КОЖНА ANYA має:
+ * - 5 живів (livesCount)
+ * - Свою точку дому (для респавну)
+ * - Кастомний AI (избегание монстрів, контр-атака, тощо)
+ * - NBT збереження для персистентності
+ */
 public class EntityAnya extends EntityCreature {
 
+    // ==================== AI ПАРАМЕТРИ ====================
+
     // Звичайна швидкість ходи - близька до гравця.
-    // Раніше wander-таск множив цю швидкість на 0.6, тому вона плелась як житель.
     private static final double NORMAL_SPEED = 0.25D;
 
-    // Рідкісний повільний режим "оглядається" - помітно повільніше за звичайний.
+    // Повільний режим "оглядається" - помітно повільніше за звичайний.
     private static final double CAUTIOUS_SPEED = 0.09D;
 
-    // Раз на скільки тіків (в середньому) перевіряємо, чи не пора змінити режим.
+    // Раз на скільки тіків перевіряємо, чи не пора змінити режим.
     private static final int MODE_CHECK_INTERVAL = 100; // ~5 сек
 
     // Ймовірність (в %) піти в "cautious" режим при кожній перевірці.
     private static final int CAUTIOUS_CHANCE_PERCENT = 15;
 
-    // Скільки тіків триває один "cautious" епізод, коли він стався.
-    private static final int CAUTIOUS_DURATION_MIN = 40;  // 2 сек
-    private static final int CAUTIOUS_DURATION_MAX = 100; // 5 сек
+    // Скільки тіків триває один "cautious" епізод.
+    private static final int CAUTIOUS_DURATION_MIN = 40;   // 2 сек
+    private static final int CAUTIOUS_DURATION_MAX = 100;  // 5 сек
 
     private int modeTimer;
     private boolean cautious;
+
+    // ==================== СИСТЕМА ЖИВІВ ====================
+
+    private static final int MAX_LIVES = 5;
+    private static final String NBT_LIVES = "anyaLives";
+    private static final String NBT_HOME_X = "anyaHomeX";
+    private static final String NBT_HOME_Y = "anyaHomeY";
+    private static final String NBT_HOME_Z = "anyaHomeZ";
+    private static final String NBT_HAS_HOME = "anyaHasHome";
+    private static final String NBT_IS_DEAD_FOREVER = "anyaIsDeadForever";
+
+    private int livesCount = MAX_LIVES;          // Поточне кількість живів (1-5)
+    private BlockPos homePos;                    // Точка дому для респавну
+    private boolean hasHome = false;             // Чи встановлено дім?
+    private boolean isDeadForever = false;       // Чи вмерла назавжди?
+
+    // ==================== КОНСТРУКТОР ====================
 
     public EntityAnya(World worldIn) {
         super(worldIn);
@@ -42,6 +71,8 @@ public class EntityAnya extends EntityCreature {
         this.setCustomNameTag(AnyaNameTag.NAME);
         this.setAlwaysRenderNameTag(true);
     }
+
+    // ==================== AI ІНІЦІАЛІЗАЦІЯ ====================
 
     @Override
     protected void initEntityAI() {
@@ -51,11 +82,9 @@ public class EntityAnya extends EntityCreature {
         this.tasks.addTask(3, new EntityAIEyeContact(this));
         this.tasks.addTask(4, new EntityAISeekShelterFromRain(this, 1.0D));
         this.tasks.addTask(5, new EntityAIWatchClosest(this, EntityPlayer.class, 8.0F));
-        // Множник тепер 1.0 - реальну швидкість дає атрибут MOVEMENT_SPEED,
-        // яким ми керуємо самі в onLivingUpdate() (два режими).
         this.tasks.addTask(6, new EntityAIWanderAvoidWater(this, 1.0D));
         this.tasks.addTask(7, new EntityAILookIdle(this));
-        // targetTasks навмисно порожній - вона не переслідує, лише контратакує впритул
+        // targetTasks навмисно порожній - контр-атака в AI
     }
 
     @Override
@@ -75,8 +104,7 @@ public class EntityAnya extends EntityCreature {
     }
 
     /**
-     * Раз на MODE_CHECK_INTERVAL тіків - шанс перейти в повільний "cautious" режим
-     * (ніби оглядається), або повернутись у звичайний темп, якщо епізод скінчився.
+     * AI режим: чередування звичайного ходу та "cautious" (оглядання)
      */
     private void updateMovementMode() {
         if (this.modeTimer > 0) {
@@ -97,6 +125,8 @@ public class EntityAnya extends EntityCreature {
             this.modeTimer = MODE_CHECK_INTERVAL;
         }
     }
+
+    // ==================== ЗВУКИ ====================
 
     @Override
     protected SoundEvent getAmbientSound() {
@@ -121,5 +151,118 @@ public class EntityAnya extends EntityCreature {
     @Override
     public boolean processInteract(EntityPlayer player, EnumHand hand) {
         return true;
+    }
+
+    // ==================== СИСТЕМА ЖИВІВ ====================
+
+    /**
+     * Встановити дім для цієї Anya
+     */
+    public void setHome(BlockPos pos) {
+        this.homePos = pos;
+        this.hasHome = true;
+    }
+
+    /**
+     * Отримати дім
+     */
+    public BlockPos getHome() {
+        return this.homePos;
+    }
+
+    /**
+     * Чи має дім?
+     */
+    public boolean hasHome() {
+        return this.hasHome;
+    }
+
+    /**
+     * Отримати поточне кількість живів
+     */
+    public int getLives() {
+        return this.livesCount;
+    }
+
+    /**
+     * Позбавити одного життя
+     * Повертає true якщо ще живе
+     */
+    public boolean loseLife() {
+        if (this.isDeadForever) {
+            return false;
+        }
+
+        this.livesCount--;
+        
+        if (this.livesCount <= 0) {
+            this.isDeadForever = true;
+            this.livesCount = 0;
+        }
+
+        return this.livesCount > 0;
+    }
+
+    /**
+     * Чи вона вмерла назавжди?
+     */
+    public boolean isDeadForever() {
+        return this.isDeadForever;
+    }
+
+    /**
+     * Отримати максимальне кількість живів
+     */
+    public int getMaxLives() {
+        return MAX_LIVES;
+    }
+
+    // ==================== NBT ЗБЕРЕЖЕННЯ ====================
+
+    /**
+     * Читання даних з NBT (при завантаженні чанку)
+     */
+    @Override
+    public void readEntityFromNBT(NBTTagCompound compound) {
+        super.readEntityFromNBT(compound);
+        
+        // Житія
+        this.livesCount = compound.getInteger(NBT_LIVES);
+        if (this.livesCount <= 0) this.livesCount = 0;
+        if (this.livesCount > MAX_LIVES) this.livesCount = MAX_LIVES;
+        
+        // Дім
+        this.hasHome = compound.getBoolean(NBT_HAS_HOME);
+        if (this.hasHome) {
+            int x = compound.getInteger(NBT_HOME_X);
+            int y = compound.getInteger(NBT_HOME_Y);
+            int z = compound.getInteger(NBT_HOME_Z);
+            this.homePos = new BlockPos(x, y, z);
+        }
+        
+        // Мертва назавжди?
+        this.isDeadForever = compound.getBoolean(NBT_IS_DEAD_FOREVER);
+    }
+
+    /**
+     * Запис даних в NBT (при вивантаженні чанку)
+     */
+    @Override
+    public void writeEntityToNBT(NBTTagCompound compound) {
+        super.writeEntityToNBT(compound);
+        
+        // Житія
+        compound.setInteger(NBT_LIVES, this.livesCount);
+        
+        // Дім
+        compound.setBoolean(NBT_HAS_HOME, this.hasHome);
+        if (this.hasHome) {
+            compound.setInteger(NBT_HOME_X, this.homePos.getX());
+            compound.setInteger(NBT_HOME_Y, this.homePos.getY());
+            compound.setInteger(NBT_HOME_Z, this.homePos.getZ());
+        }
+        
+        // Мертва назавжди?
+        compound.setBoolean(NBT_IS_DEAD_FOREVER, this.isDeadForever);
     }
 }
