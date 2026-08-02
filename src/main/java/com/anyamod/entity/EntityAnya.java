@@ -29,19 +29,10 @@ public class EntityAnya extends EntityCreature {
 
     // ==================== AI ПАРАМЕТРИ ====================
 
-    // Звичайна швидкість ходи - близька до гравця.
     private static final double NORMAL_SPEED = 0.25D;
-
-    // Повільний режим "оглядається" - помітно повільніше за звичайний.
     private static final double CAUTIOUS_SPEED = 0.09D;
-
-    // Раз на скільки тіків перевіряємо, чи не пора змінити режим.
     private static final int MODE_CHECK_INTERVAL = 100; // ~5 сек
-
-    // Ймовірність (в %) піти в "cautious" режим при кожній перевірці.
     private static final int CAUTIOUS_CHANCE_PERCENT = 15;
-
-    // Скільки тіків триває один "cautious" епізод.
     private static final int CAUTIOUS_DURATION_MIN = 40;   // 2 сек
     private static final int CAUTIOUS_DURATION_MAX = 100;  // 5 сек
 
@@ -58,10 +49,10 @@ public class EntityAnya extends EntityCreature {
     private static final String NBT_HAS_HOME = "anyaHasHome";
     private static final String NBT_IS_DEAD_FOREVER = "anyaIsDeadForever";
 
-    private int livesCount = MAX_LIVES;          // Поточне кількість живів (1-5)
-    private BlockPos homePos;                    // Точка дому для респавну
-    private boolean hasHome = false;             // Чи встановлено дім?
-    private boolean isDeadForever = false;       // Чи вмерла назавжди?
+    private int livesCount = MAX_LIVES;
+    private BlockPos homePos;
+    private boolean hasHome = false;
+    private boolean isDeadForever = false;
 
     // ==================== КОНСТРУКТОР ====================
 
@@ -103,9 +94,6 @@ public class EntityAnya extends EntityCreature {
         }
     }
 
-    /**
-     * AI режим: чередування звичайного ходу та "cautious" (оглядання)
-     */
     private void updateMovementMode() {
         if (this.modeTimer > 0) {
             this.modeTimer--;
@@ -155,38 +143,37 @@ public class EntityAnya extends EntityCreature {
 
     // ==================== СИСТЕМА ЖИВІВ ====================
 
-    /**
-     * Встановити дім для цієї Anya
-     */
     public void setHome(BlockPos pos) {
         this.homePos = pos;
         this.hasHome = true;
     }
 
-    /**
-     * Отримати дім
-     */
     public BlockPos getHome() {
         return this.homePos;
     }
 
-    /**
-     * Чи має дім?
-     */
     public boolean hasHome() {
         return this.hasHome;
     }
 
-    /**
-     * Отримати поточне кількість живів
-     */
     public int getLives() {
         return this.livesCount;
     }
 
     /**
-     * Позбавити одного життя
-     * Повертає true якщо ще живе
+     * Встановити кількість життів напряму. Використовується при респавні,
+     * щоб перенести реальний залишок життів у нову сутність
+     * (замість того, щоб вона завжди створювалась з дефолтних 5).
+     */
+    public void setLives(int lives) {
+        if (lives < 0) lives = 0;
+        if (lives > MAX_LIVES) lives = MAX_LIVES;
+        this.livesCount = lives;
+        this.isDeadForever = (lives <= 0);
+    }
+
+    /**
+     * Позбавити одного життя. Повертає true якщо ще живе.
      */
     public boolean loseLife() {
         if (this.isDeadForever) {
@@ -194,7 +181,7 @@ public class EntityAnya extends EntityCreature {
         }
 
         this.livesCount--;
-        
+
         if (this.livesCount <= 0) {
             this.isDeadForever = true;
             this.livesCount = 0;
@@ -204,34 +191,35 @@ public class EntityAnya extends EntityCreature {
     }
 
     /**
-     * Чи вона вмерла назавжди?
+     * Додати одне життя (наприклад, на початку нового дня). Не перевищує MAX_LIVES.
      */
+    public void addLife() {
+        if (this.isDeadForever) {
+            return; // мертва назавжди - воскресити цим методом не можна
+        }
+        if (this.livesCount < MAX_LIVES) {
+            this.livesCount++;
+        }
+    }
+
     public boolean isDeadForever() {
         return this.isDeadForever;
     }
 
-    /**
-     * Отримати максимальне кількість живів
-     */
     public int getMaxLives() {
         return MAX_LIVES;
     }
 
     // ==================== NBT ЗБЕРЕЖЕННЯ ====================
 
-    /**
-     * Читання даних з NBT (при завантаженні чанку)
-     */
     @Override
     public void readEntityFromNBT(NBTTagCompound compound) {
         super.readEntityFromNBT(compound);
-        
-        // Житія
+
         this.livesCount = compound.getInteger(NBT_LIVES);
         if (this.livesCount <= 0) this.livesCount = 0;
         if (this.livesCount > MAX_LIVES) this.livesCount = MAX_LIVES;
-        
-        // Дім
+
         this.hasHome = compound.getBoolean(NBT_HAS_HOME);
         if (this.hasHome) {
             int x = compound.getInteger(NBT_HOME_X);
@@ -239,30 +227,23 @@ public class EntityAnya extends EntityCreature {
             int z = compound.getInteger(NBT_HOME_Z);
             this.homePos = new BlockPos(x, y, z);
         }
-        
-        // Мертва назавжди?
+
         this.isDeadForever = compound.getBoolean(NBT_IS_DEAD_FOREVER);
     }
 
-    /**
-     * Запис даних в NBT (при вивантаженні чанку)
-     */
     @Override
     public void writeEntityToNBT(NBTTagCompound compound) {
         super.writeEntityToNBT(compound);
-        
-        // Житія
+
         compound.setInteger(NBT_LIVES, this.livesCount);
-        
-        // Дім
+
         compound.setBoolean(NBT_HAS_HOME, this.hasHome);
         if (this.hasHome) {
             compound.setInteger(NBT_HOME_X, this.homePos.getX());
             compound.setInteger(NBT_HOME_Y, this.homePos.getY());
             compound.setInteger(NBT_HOME_Z, this.homePos.getZ());
         }
-        
-        // Мертва назавжди?
+
         compound.setBoolean(NBT_IS_DEAD_FOREVER, this.isDeadForever);
     }
 }
