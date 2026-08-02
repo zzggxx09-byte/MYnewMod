@@ -11,11 +11,22 @@ import net.minecraftforge.fml.common.Mod;
 import net.minecraftforge.fml.common.eventhandler.SubscribeEvent;
 import net.minecraftforge.fml.common.gameevent.TickEvent;
 
+import java.util.HashMap;
+import java.util.Iterator;
+import java.util.Map;
+
 /**
- * СИСТЕМА РЕСПАВНУ ANYA З ЖИТТЯМИ (ІНДИВІДУАЛЬНІ)
+ * СИСТЕМА РЕСПАВНУ ANYA З ЖИТТЯМИ (ПОВНІСТЮ ПЕРЕДІЛАНА)
  * 
- * КОЖНА ANYA має свої livesCount, homePos, тощо!
- * Дані зберігаються в NBT EntityAnya, а не у WorldSavedData.
+ * ✓ Система живих ПОВНІСТЮ в EntityAnya.java
+ * ✓ Кожна Anya має свої livesCount, homePos, тощо
+ * ✓ NBT сохранення в EntityAnya
+ * ✓ AnyaRespawnData більш НЕ ВИКОРИСТОВУЄТЬСЯ
+ * 
+ * Цей обробник тільки:
+ * - Обробляє LivingDeathEvent
+ * - Вызивает anya.loseLife()
+ * - Встановлює каунтдаун на респавн
  */
 @Mod.EventBusSubscriber(modid = AnyaMod.MODID)
 public class AnyaRespawnHandler {
@@ -24,16 +35,16 @@ public class AnyaRespawnHandler {
     
     // Тимчасовий хранилище для очікування респавну
     // Ключ: entityId, Значення: тики до респавну
-    private static java.util.Map<Integer, Integer> pendingRespawns = new java.util.HashMap<>();
-    private static java.util.Map<Integer, BlockPos> respawnPositions = new java.util.HashMap<>();
+    private static final Map<Integer, Integer> pendingRespawns = new HashMap<>();
+    private static final Map<Integer, BlockPos> respawnPositions = new HashMap<>();
 
     // ==================== СМЕРТЬ ====================
 
     /**
-     * Коли Anya помирає:
-     * 1. -1 life (з её NBT)
-     * 2. Якщо життя залишилось → встановити респавн
-     * 3. Якщо =0 → смерть назавжди (broadcast в чат)
+     * Коли EntityAnya помирає:
+     * 1. Вызываємо anya.loseLife() (це змінює livesCount в NBT)
+     * 2. Якщо livesCount > 0: встановлюємо каунтдаун на респавн
+     * 3. Якщо livesCount = 0: мертва назавжди (нема респавну)
      */
     @SubscribeEvent
     public static void onAnyaDeath(LivingDeathEvent event) {
@@ -43,19 +54,25 @@ public class AnyaRespawnHandler {
         EntityAnya anya = (EntityAnya) event.getEntity();
         World world = anya.world;
 
+        System.out.println("[AnyaMod] onAnyaDeath: Anya (ID: " + anya.getEntityId() + ") помирає");
+        System.out.println("[AnyaMod]   Житів ДО: " + anya.getLives());
+
         if (!anya.hasHome()) {
-            // Немає дому - просто помирає
+            System.out.println("[AnyaMod]   Немає дому - просто помирає");
             return;
         }
 
-        // Позбавити одного життя ЦІЄЇ конкретної Anya
+        // ========== ПОЗБАВИТИ ОДНОГО ЖИТТЯ ==========
         boolean stillAlive = anya.loseLife();
+        
+        System.out.println("[AnyaMod]   Житів ПІСЛЯ loseLife(): " + anya.getLives());
+        System.out.println("[AnyaMod]   isDeadForever: " + anya.isDeadForever());
 
         if (!stillAlive) {
             // ========== СМЕРТЬ НАЗАВЖДИ ==========
             
             String deathMessage = TextFormatting.DARK_RED 
-                + "❌ Аня мертва назавжди... (0 живів)" 
+                + "❌ Аня мертва назавжди... (0 живій)" 
                 + TextFormatting.RESET;
             
             world.getPlayers(net.minecraft.entity.player.EntityPlayer.class, player -> true)
@@ -85,12 +102,13 @@ public class AnyaRespawnHandler {
         respawnPositions.put(entityId, anya.getHome());
         
         System.out.println("[AnyaMod] Anya (ID: " + entityId + ") має " + livesLeft + " живій.");
+        System.out.println("[AnyaMod] Встановлено каунтдаун на " + RESPAWN_DELAY_TICKS + " тиків");
     }
 
     // ==================== РЕСПАВН ====================
 
     /**
-     * Кожен тік світу: проверяємо респавн для КОЖНОЇ Anya
+     * Кожен тік світу: обновляємо каунтдауни респавну для КОЖНОЇ Anya
      */
     @SubscribeEvent
     public static void onWorldTick(TickEvent.WorldTickEvent event) {
@@ -98,11 +116,10 @@ public class AnyaRespawnHandler {
         if (event.world.isRemote) return;
 
         // Обновити всі каунтдауни респавну
-        java.util.Iterator<java.util.Map.Entry<Integer, Integer>> iterator = 
-            pendingRespawns.entrySet().iterator();
+        Iterator<Map.Entry<Integer, Integer>> iterator = pendingRespawns.entrySet().iterator();
         
         while (iterator.hasNext()) {
-            java.util.Map.Entry<Integer, Integer> entry = iterator.next();
+            Map.Entry<Integer, Integer> entry = iterator.next();
             int entityId = entry.getKey();
             int ticksLeft = entry.getValue();
             
@@ -144,6 +161,6 @@ public class AnyaRespawnHandler {
         world.getPlayers(net.minecraft.entity.player.EntityPlayer.class, player -> true)
                 .forEach(player -> player.sendMessage(new TextComponentString(respawnSuccessMessage)));
         
-        System.out.println("[AnyaMod] Anya респавнена в " + homePos);
+        System.out.println("[AnyaMod] Anya (ID: " + entity.getEntityId() + ") респавнена в " + homePos);
     }
-}
+                                    }
