@@ -12,18 +12,15 @@ import java.io.IOException;
 
 public class GuiAnyaInterface extends GuiScreen {
 
-    // ЗМІНЕНО: власні текстури замість ванільного textures/gui/icons.png
     private static final ResourceLocation HEART_FULL =
             new ResourceLocation(AnyaMod.MODID, "textures/gui/heart_full.png");
     private static final ResourceLocation HEART_EMPTY =
             new ResourceLocation(AnyaMod.MODID, "textures/gui/heart_empty.png");
 
-    // Текстури вже 16x16 - малюємо в натуральному розмірі, без масштабування.
-    // Якщо захочете трохи більші/менші сердечка на екрані - міняйте тільки HEART_SIZE.
-    private static final int HEART_SIZE = 16;
-    private static final int HEART_SPACING = 18;   // невеликий проміжок між серцями
-    private static final int MARGIN_TOP = 20;
-    private static final int MARGIN_RIGHT = 20;
+    // ЗБІЛЬШЕНО: розмір іконки та відстань між ними для великого відображення
+    private static final int HEART_SIZE = 28;       // розмір серця на екрані
+    private static final int HEART_SPACING = 32;    // крок між серцями
+    private static final int MARGIN_BOTTOM = 30;    // відступ від нижнього краю екрана
 
     private final EntityAnya anya;
 
@@ -53,20 +50,25 @@ public class GuiAnyaInterface extends GuiScreen {
         int maxLives = this.anya.getMaxLives();
         int lives = this.anya.getLives();
 
+        if (maxLives <= 0) return;
+
         GlStateManager.color(1.0F, 1.0F, 1.0F, 1.0F);
         GlStateManager.enableBlend();
 
-        int totalWidth = maxLives * HEART_SPACING;
-        int startX = this.width - MARGIN_RIGHT - totalWidth;
-        int y = MARGIN_TOP;
+        // Загальна ширина ряду сердець (враховуючи ширину самого серця)
+        int totalWidth = (maxLives - 1) * HEART_SPACING + HEART_SIZE;
+
+        // startX центрує весь ряд; при 5 серцях 3-є опиняється строго по центру екрана
+        int startX = (this.width - totalWidth) / 2;
+        int y = this.height - MARGIN_BOTTOM - HEART_SIZE;
 
         for (int i = 0; i < maxLives; i++) {
             int x = startX + i * HEART_SPACING;
             boolean filled = i < lives;
 
             this.mc.getTextureManager().bindTexture(filled ? HEART_FULL : HEART_EMPTY);
-            // Малюємо всю текстуру (0,0 -> 16x16) без вирізання шматка з атласу -
-            // кожен файл вже сам по собі є готовим серцем.
+            
+            // Масштабуємо 16x16 текстуру до нового розширеного розміру HEART_SIZE
             this.drawScaledCustomSizeModalRect(x, y, 0, 0, 16, 16, HEART_SIZE, HEART_SIZE, 16, 16);
         }
 
