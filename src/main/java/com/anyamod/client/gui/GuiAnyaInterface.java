@@ -18,9 +18,9 @@ public class GuiAnyaInterface extends GuiScreen {
             new ResourceLocation(AnyaMod.MODID, "textures/gui/heart_empty.png");
 
     // ЗБІЛЬШЕНО: розмір іконки та відстань між ними для великого відображення
-    private static final int HEART_SIZE = 28;       // розмір серця на екрані
-    private static final int HEART_SPACING = 32;    // крок між серцями
-    private static final int MARGIN_BOTTOM = 30;    // відступ від нижнього краю екрана
+    private static final int HEART_SIZE = 22;       // розмір серця на екрані
+    private static final int HEART_SPACING = 28;    // крок між серцями
+    private static final int MARGIN_BOTTOM = 10;    // відступ від нижнього краю екрана
 
     private final EntityAnya anya;
 
