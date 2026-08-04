@@ -17,10 +17,13 @@ public class GuiAnyaInterface extends GuiScreen {
     private static final ResourceLocation HEART_EMPTY =
             new ResourceLocation(AnyaMod.MODID, "textures/gui/heart_empty.png");
 
-    // ЗБІЛЬШЕНО: розмір іконки та відстань між ними для великого відображення
     private static final int HEART_SIZE = 22;       // розмір серця на екрані
     private static final int HEART_SPACING = 28;    // крок між серцями
     private static final int MARGIN_BOTTOM = 10;    // відступ від нижнього краю екрана
+
+    // Параметри анімації
+    private static final int ANIMATION_DURATION_MS = 250; // тривалість у мілісекундах (0.25 сек)
+    private long openTime;
 
     private final EntityAnya anya;
 
@@ -31,6 +34,7 @@ public class GuiAnyaInterface extends GuiScreen {
     @Override
     public void initGui() {
         super.initGui();
+        this.openTime = System.currentTimeMillis(); // Засікаємо час відкриття GUI
         AnyaNetwork.CHANNEL.sendToServer(new PacketAnyaGuiState(this.anya.getEntityId(), true));
     }
 
@@ -52,15 +56,26 @@ public class GuiAnyaInterface extends GuiScreen {
 
         if (maxLives <= 0) return;
 
+        // Розрахунок прогресу анімації (від 0.0 до 1.0)
+        long elapsedTime = System.currentTimeMillis() - this.openTime;
+        float progress = Math.min(1.0F, (float) elapsedTime / ANIMATION_DURATION_MS);
+
+        // Формула Smoothstep для м'якого зупинення наприкінці (Ease-Out)
+        progress = progress * progress * (3.0F - 2.0F * progress);
+
         GlStateManager.color(1.0F, 1.0F, 1.0F, 1.0F);
         GlStateManager.enableBlend();
 
-        // Загальна ширина ряду сердець (враховуючи ширину самого серця)
+        // Загальна ширина ряду сердець
         int totalWidth = (maxLives - 1) * HEART_SPACING + HEART_SIZE;
 
-        // startX центрує весь ряд; при 5 серцях 3-є опиняється строго по центру екрана
+        // X-координата для центрування (3-є серце опиняється рівно по центру)
         int startX = (this.width - totalWidth) / 2;
-        int y = this.height - MARGIN_BOTTOM - HEART_SIZE;
+
+        // Y-координата з анімацією висування з-за меж нижнього краю
+        int targetY = this.height - MARGIN_BOTTOM - HEART_SIZE;
+        int startY = this.height + 10; // Старт за нижньою межею екрана
+        int currentY = (int) (startY + (targetY - startY) * progress);
 
         for (int i = 0; i < maxLives; i++) {
             int x = startX + i * HEART_SPACING;
@@ -68,8 +83,8 @@ public class GuiAnyaInterface extends GuiScreen {
 
             this.mc.getTextureManager().bindTexture(filled ? HEART_FULL : HEART_EMPTY);
             
-            // Масштабуємо 16x16 текстуру до нового розширеного розміру HEART_SIZE
-            this.drawScaledCustomSizeModalRect(x, y, 0, 0, 16, 16, HEART_SIZE, HEART_SIZE, 16, 16);
+            // Відмальовка з актуальною поточною Y-координатою
+            this.drawScaledCustomSizeModalRect(x, currentY, 0, 0, 16, 16, HEART_SIZE, HEART_SIZE, 16, 16);
         }
 
         GlStateManager.disableBlend();
