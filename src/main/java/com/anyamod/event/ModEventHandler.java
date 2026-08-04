@@ -25,18 +25,3 @@ public class ModEventHandler {
         mob.targetTasks.addTask(3, new EntityAINearestAttackableTarget<>(mob, EntityAnya.class, true));
     }
 }
-
-@SubscribeEvent
-public static void onAnyaJoinWorld(EntityJoinWorldEvent event) {
-    if (event.getWorld().isRemote) return;
-    if (!(event.getEntity() instanceof EntityAnya)) return;
-
-    EntityAnya newAnya = (EntityAnya) event.getEntity();
-    boolean alreadyExists = event.getWorld()
-            .getEntities(EntityAnya.class, a -> a != newAnya && a.isEntityAlive())
-            .stream().findAny().isPresent();
-
-    if (alreadyExists) {
-        event.setCanceled(true);
-    }
-}
