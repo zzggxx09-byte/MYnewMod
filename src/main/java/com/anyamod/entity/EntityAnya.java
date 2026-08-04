@@ -137,8 +137,11 @@ public class EntityAnya extends EntityCreature {
     }
 
     @Override
-    public boolean processInteract(EntityPlayer player, EnumHand hand) {
-        return true;
+public boolean processInteract(EntityPlayer player, EnumHand hand) {
+    if (this.world.isRemote) {
+        com.anyamod.AnyaMod.proxy.openAnyaGui(this, player);
+    }
+    return true;
     }
 
     // ==================== СИСТЕМА ЖИВІВ ====================
