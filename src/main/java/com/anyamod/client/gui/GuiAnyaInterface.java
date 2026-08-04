@@ -1,5 +1,6 @@
 package com.anyamod.client.gui;
 
+import com.anyamod.AnyaMod;
 import com.anyamod.entity.EntityAnya;
 import com.anyamod.network.AnyaNetwork;
 import com.anyamod.network.PacketAnyaGuiState;
@@ -11,10 +12,16 @@ import java.io.IOException;
 
 public class GuiAnyaInterface extends GuiScreen {
 
-    private static final ResourceLocation ICONS = new ResourceLocation("textures/gui/icons.png");
+    // ЗМІНЕНО: власні текстури замість ванільного textures/gui/icons.png
+    private static final ResourceLocation HEART_FULL =
+            new ResourceLocation(AnyaMod.MODID, "textures/gui/heart_full.png");
+    private static final ResourceLocation HEART_EMPTY =
+            new ResourceLocation(AnyaMod.MODID, "textures/gui/heart_empty.png");
 
-    private static final int HEART_SIZE = 18;
-    private static final int HEART_SPACING = 20;
+    // Текстури вже 16x16 - малюємо в натуральному розмірі, без масштабування.
+    // Якщо захочете трохи більші/менші сердечка на екрані - міняйте тільки HEART_SIZE.
+    private static final int HEART_SIZE = 9;
+    private static final int HEART_SPACING = 10;   // невеликий проміжок між серцями
     private static final int MARGIN_TOP = 20;
     private static final int MARGIN_RIGHT = 20;
 
@@ -27,21 +34,17 @@ public class GuiAnyaInterface extends GuiScreen {
     @Override
     public void initGui() {
         super.initGui();
-        // Повідомляємо сервер, що гравець відкрив UI - Аня завмре і дивитиметься на нього
         AnyaNetwork.CHANNEL.sendToServer(new PacketAnyaGuiState(this.anya.getEntityId(), true));
     }
 
     @Override
     public void onGuiClosed() {
         super.onGuiClosed();
-        // Повідомляємо сервер про закриття - Аня повертається до звичайного AI
         AnyaNetwork.CHANNEL.sendToServer(new PacketAnyaGuiState(this.anya.getEntityId(), false));
     }
 
     @Override
     public void drawScreen(int mouseX, int mouseY, float partialTicks) {
-        // Затемнення прибрано - інтерфейс прозорий, HUD ховається окремо через
-        // AnyaGuiOverlayHandler, а не через темний фон.
         this.drawHearts();
         super.drawScreen(mouseX, mouseY, partialTicks);
     }
@@ -52,7 +55,6 @@ public class GuiAnyaInterface extends GuiScreen {
 
         GlStateManager.color(1.0F, 1.0F, 1.0F, 1.0F);
         GlStateManager.enableBlend();
-        this.mc.getTextureManager().bindTexture(ICONS);
 
         int totalWidth = maxLives * HEART_SPACING;
         int startX = this.width - MARGIN_RIGHT - totalWidth;
@@ -62,10 +64,10 @@ public class GuiAnyaInterface extends GuiScreen {
             int x = startX + i * HEART_SPACING;
             boolean filled = i < lives;
 
-            int u = filled ? 52 : 16;
-            int v = 45;
-
-            this.drawScaledCustomSizeModalRect(x, y, u, v, 9, 9, HEART_SIZE, HEART_SIZE, 256, 256);
+            this.mc.getTextureManager().bindTexture(filled ? HEART_FULL : HEART_EMPTY);
+            // Малюємо всю текстуру (0,0 -> 16x16) без вирізання шматка з атласу -
+            // кожен файл вже сам по собі є готовим серцем.
+            this.drawScaledCustomSizeModalRect(x, y, 0, 0, 16, 16, HEART_SIZE, HEART_SIZE, 16, 16);
         }
 
         GlStateManager.disableBlend();
