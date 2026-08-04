@@ -20,7 +20,7 @@ import java.util.Map;
  *
  * Обробляє LivingDeathEvent, викликає anya.loseLife() і встановлює
  * каунтдаун на респавн. При респавні переносить реальну кількість
- * життів, що лишилась, у нову сутність (щоб життя справді витрачались).
+ * життів, що лишилась, у нову сутність.
  */
 @Mod.EventBusSubscriber(modid = AnyaMod.MODID)
 public class AnyaRespawnHandler {
@@ -29,7 +29,7 @@ public class AnyaRespawnHandler {
 
     private static final Map<Integer, Integer> pendingRespawns = new HashMap<>();
     private static final Map<Integer, BlockPos> respawnPositions = new HashMap<>();
-    private static final Map<Integer, Integer> respawnLives = new HashMap<>(); // ДОДАНО
+    private static final Map<Integer, Integer> respawnLives = new HashMap<>();
 
     // ==================== СМЕРТЬ ====================
 
@@ -79,7 +79,7 @@ public class AnyaRespawnHandler {
         int entityId = anya.getEntityId();
         pendingRespawns.put(entityId, RESPAWN_DELAY_TICKS);
         respawnPositions.put(entityId, anya.getHome());
-        respawnLives.put(entityId, livesLeft); // ДОДАНО - зберігаємо залишок життів
+        respawnLives.put(entityId, livesLeft);
 
         System.out.println("[AnyaMod] Anya (ID: " + entityId + ") має " + livesLeft + " живій.");
         System.out.println("[AnyaMod] Встановлено каунтдаун на " + RESPAWN_DELAY_TICKS + " тиків");
@@ -103,22 +103,18 @@ public class AnyaRespawnHandler {
 
             if (ticksLeft <= 0) {
                 BlockPos respawnPos = respawnPositions.get(entityId);
-                int livesLeft = respawnLives.get(entityId); // ДОДАНО
-                respawnAnya(event.world, respawnPos, livesLeft); // змінено виклик
+                int livesLeft = respawnLives.get(entityId);
+                respawnAnya(event.world, respawnPos, livesLeft);
 
                 iterator.remove();
                 respawnPositions.remove(entityId);
-                respawnLives.remove(entityId); // ДОДАНО
+                respawnLives.remove(entityId);
             } else {
                 pendingRespawns.put(entityId, ticksLeft);
             }
         }
     }
 
-    /**
-     * Респавнити Anya на дому з переданою кількістю життів,
-     * що лишилась від попередньої смерті.
-     */
     private static void respawnAnya(World world, BlockPos homePos, int livesLeft) {
         EntityAnya entity = new EntityAnya(world);
         entity.setLocationAndAngles(
@@ -128,7 +124,7 @@ public class AnyaRespawnHandler {
                 0.0F, 0.0F
         );
         entity.setHome(homePos);
-        entity.setLives(livesLeft); // ДОДАНО - переносимо реальний залишок життів
+        entity.setLives(livesLeft);
         entity.setHealth(entity.getMaxHealth());
         world.spawnEntity(entity);
 
@@ -141,19 +137,5 @@ public class AnyaRespawnHandler {
 
         System.out.println("[AnyaMod] Anya (ID: " + entity.getEntityId() + ") респавнена в " + homePos
                 + " з " + entity.getLives() + " життями");
-    }
-
-@SubscribeEvent
-public static void onAnyaJoinWorld(EntityJoinWorldEvent event) {
-    if (event.getWorld().isRemote) return;
-    if (!(event.getEntity() instanceof EntityAnya)) return;
-
-    EntityAnya newAnya = (EntityAnya) event.getEntity();
-    boolean alreadyExists = event.getWorld()
-            .getEntities(EntityAnya.class, a -> a != newAnya && a.isEntityAlive())
-            .stream().findAny().isPresent();
-
-    if (alreadyExists) {
-        event.setCanceled(true);
     }
 }
