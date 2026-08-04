@@ -1,0 +1,15 @@
+package com.anyamod.network;
+
+import net.minecraftforge.fml.common.network.NetworkRegistry;
+import net.minecraftforge.fml.common.network.simpleimpl.SimpleNetworkWrapper;
+import net.minecraftforge.fml.relauncher.Side;
+
+public class AnyaNetwork {
+
+    public static SimpleNetworkWrapper CHANNEL;
+
+    public static void init() {
+        CHANNEL = NetworkRegistry.INSTANCE.newSimpleChannel("anyamod_channel");
+        CHANNEL.registerMessage(PacketAnyaGuiState.Handler.class, PacketAnyaGuiState.class, 0, Side.SERVER);
+    }
+    }
