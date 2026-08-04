@@ -142,4 +142,18 @@ public class AnyaRespawnHandler {
         System.out.println("[AnyaMod] Anya (ID: " + entity.getEntityId() + ") респавнена в " + homePos
                 + " з " + entity.getLives() + " життями");
     }
+
+@SubscribeEvent
+public static void onAnyaJoinWorld(EntityJoinWorldEvent event) {
+    if (event.getWorld().isRemote) return;
+    if (!(event.getEntity() instanceof EntityAnya)) return;
+
+    EntityAnya newAnya = (EntityAnya) event.getEntity();
+    boolean alreadyExists = event.getWorld()
+            .getEntities(EntityAnya.class, a -> a != newAnya && a.isEntityAlive())
+            .stream().findAny().isPresent();
+
+    if (alreadyExists) {
+        event.setCanceled(true);
+    }
 }
