@@ -155,6 +155,16 @@ public boolean processInteract(EntityPlayer player, EnumHand hand) {
         return this.homePos;
     }
 
+    private EntityPlayer guiViewer;
+
+public void setGuiViewer(EntityPlayer viewer) {
+    this.guiViewer = viewer;
+    }
+
+public EntityPlayer getGuiViewer() {
+    return this.guiViewer;
+    }
+
     public boolean hasHome() {
         return this.hasHome;
     }
