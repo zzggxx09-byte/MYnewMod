@@ -5,7 +5,7 @@ import net.minecraft.creativetab.CreativeTabs;
 import net.minecraftforge.fml.common.Mod;
 import net.minecraftforge.fml.common.Mod.EventHandler;
 import net.minecraftforge.fml.common.SidedProxy;
-import net.minecraftforge.fml.common.event.FMLPreInitializationEvent; // <-- імпортуємо PreInit
+import net.minecraftforge.fml.common.event.FMLPreInitializationEvent;
 
 @Mod(modid = AnyaMod.MODID, name = AnyaMod.NAME, version = AnyaMod.VERSION)
 public class AnyaMod {
@@ -24,9 +24,9 @@ public class AnyaMod {
     @SidedProxy(clientSide = "com.anyamod.proxy.ClientProxy", serverSide = "com.anyamod.proxy.CommonProxy")
     public static CommonProxy proxy;
 
-    // ЗМІНЕНО: перенесено з init в preInit
     @EventHandler
     public void preInit(FMLPreInitializationEvent event) {
+        com.anyamod.network.AnyaNetwork.init(); // ДОДАНО - реєстрація мережевого каналу
         proxy.registerRenderers();
     }
 }
