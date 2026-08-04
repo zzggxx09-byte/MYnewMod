@@ -20,8 +20,8 @@ public class GuiAnyaInterface extends GuiScreen {
 
     // Текстури вже 16x16 - малюємо в натуральному розмірі, без масштабування.
     // Якщо захочете трохи більші/менші сердечка на екрані - міняйте тільки HEART_SIZE.
-    private static final int HEART_SIZE = 18;
-    private static final int HEART_SPACING = 10;   // невеликий проміжок між серцями
+    private static final int HEART_SIZE = 16;
+    private static final int HEART_SPACING = 18;   // невеликий проміжок між серцями
     private static final int MARGIN_TOP = 20;
     private static final int MARGIN_RIGHT = 20;
 
