@@ -10,6 +10,12 @@ public class ClientProxy extends CommonProxy {
         registerEntityRenderers();
         // Модель яйця реєструється окремо в ClientModelEvents.java на ModelRegistryEvent.
     }
+    @Override
+public void openAnyaGui(com.anyamod.entity.EntityAnya anya, net.minecraft.entity.player.EntityPlayer player) {
+    net.minecraft.client.Minecraft.getMinecraft().displayGuiScreen(
+            new com.anyamod.client.gui.GuiAnyaInterface(anya)
+    );
+}
 
     private void registerEntityRenderers() {
         // Тепер Anya рендериться моделлю гравця (slim/Alex) зі своєю текстурою-скіном,
