@@ -96,6 +96,11 @@ public class EntityAnya extends EntityCreature {
     }
 
     @Override
+protected boolean canDespawn() {
+    return false;
+    }
+
+    @Override
     public void onLivingUpdate() {
         super.onLivingUpdate();
 
