@@ -2,6 +2,7 @@ package com.anyamod.entity;
 
 import com.anyamod.entity.ai.EntityAICounterAttack;
 import com.anyamod.entity.ai.EntityAIEyeContact;
+import com.anyamod.entity.ai.EntityAIFreezeForGui;
 import com.anyamod.entity.ai.EntityAISeekShelterFromRain;
 import com.anyamod.init.ModSounds;
 import net.minecraft.entity.EntityCreature;
@@ -10,6 +11,9 @@ import net.minecraft.entity.ai.*;
 import net.minecraft.entity.monster.EntityMob;
 import net.minecraft.entity.player.EntityPlayer;
 import net.minecraft.nbt.NBTTagCompound;
+import net.minecraft.network.datasync.DataParameter;
+import net.minecraft.network.datasync.DataSerializers;
+import net.minecraft.network.datasync.EntityDataManager;
 import net.minecraft.util.DamageSource;
 import net.minecraft.util.EnumHand;
 import net.minecraft.util.SoundEvent;
@@ -18,12 +22,6 @@ import net.minecraft.world.World;
 
 /**
  * Anya - кастомний моб з AI та системою 5 живів
- * 
- * КОЖНА ANYA має:
- * - 5 живів (livesCount)
- * - Свою точку дому (для респавну)
- * - Кастомний AI (избегание монстрів, контр-атака, тощо)
- * - NBT збереження для персистентності
  */
 public class EntityAnya extends EntityCreature {
 
@@ -31,10 +29,10 @@ public class EntityAnya extends EntityCreature {
 
     private static final double NORMAL_SPEED = 0.25D;
     private static final double CAUTIOUS_SPEED = 0.09D;
-    private static final int MODE_CHECK_INTERVAL = 100; // ~5 сек
+    private static final int MODE_CHECK_INTERVAL = 100;
     private static final int CAUTIOUS_CHANCE_PERCENT = 15;
-    private static final int CAUTIOUS_DURATION_MIN = 40;   // 2 сек
-    private static final int CAUTIOUS_DURATION_MAX = 100;  // 5 сек
+    private static final int CAUTIOUS_DURATION_MIN = 40;
+    private static final int CAUTIOUS_DURATION_MAX = 100;
 
     private int modeTimer;
     private boolean cautious;
@@ -42,6 +40,11 @@ public class EntityAnya extends EntityCreature {
     // ==================== СИСТЕМА ЖИВІВ ====================
 
     private static final int MAX_LIVES = 5;
+
+    // ДОДАНО: синхронізований параметр - сервер записує, клієнт автоматично отримує оновлення.
+    private static final DataParameter<Integer> LIVES =
+            EntityDataManager.createKey(EntityAnya.class, DataSerializers.VARINT);
+
     private static final String NBT_LIVES = "anyaLives";
     private static final String NBT_HOME_X = "anyaHomeX";
     private static final String NBT_HOME_Y = "anyaHomeY";
@@ -49,10 +52,11 @@ public class EntityAnya extends EntityCreature {
     private static final String NBT_HAS_HOME = "anyaHasHome";
     private static final String NBT_IS_DEAD_FOREVER = "anyaIsDeadForever";
 
-    private int livesCount = MAX_LIVES;
     private BlockPos homePos;
     private boolean hasHome = false;
     private boolean isDeadForever = false;
+
+    private EntityPlayer guiViewer;
 
     // ==================== КОНСТРУКТОР ====================
 
@@ -63,20 +67,26 @@ public class EntityAnya extends EntityCreature {
         this.setAlwaysRenderNameTag(true);
     }
 
+    @Override
+    protected void entityInit() {
+        super.entityInit();
+        this.dataManager.register(LIVES, MAX_LIVES); // ДОДАНО - реєстрація синхронізованого поля
+    }
+
     // ==================== AI ІНІЦІАЛІЗАЦІЯ ====================
 
     @Override
-protected void initEntityAI() {
-    this.tasks.addTask(0, new EntityAISwimming(this));
-    this.tasks.addTask(1, new com.anyamod.entity.ai.EntityAIFreezeForGui(this));
-    this.tasks.addTask(2, new EntityAICounterAttack(this));
-    this.tasks.addTask(3, new EntityAIAvoidEntity<>(this, EntityMob.class, 8.0F, 1.0D, 1.2D));
-    this.tasks.addTask(4, new EntityAIEyeContact(this));
-    this.tasks.addTask(5, new EntityAISeekShelterFromRain(this, 1.0D));
-    this.tasks.addTask(6, new EntityAIWatchClosest(this, EntityPlayer.class, 8.0F));
-    this.tasks.addTask(7, new EntityAIWanderAvoidWater(this, 1.0D));
-    this.tasks.addTask(8, new EntityAILookIdle(this));
-}
+    protected void initEntityAI() {
+        this.tasks.addTask(0, new EntityAISwimming(this));
+        this.tasks.addTask(1, new EntityAIFreezeForGui(this));
+        this.tasks.addTask(2, new EntityAICounterAttack(this));
+        this.tasks.addTask(3, new EntityAIAvoidEntity<>(this, EntityMob.class, 8.0F, 1.0D, 1.2D));
+        this.tasks.addTask(4, new EntityAIEyeContact(this));
+        this.tasks.addTask(5, new EntityAISeekShelterFromRain(this, 1.0D));
+        this.tasks.addTask(6, new EntityAIWatchClosest(this, EntityPlayer.class, 8.0F));
+        this.tasks.addTask(7, new EntityAIWanderAvoidWater(this, 1.0D));
+        this.tasks.addTask(8, new EntityAILookIdle(this));
+    }
 
     @Override
     protected void applyEntityAttributes() {
@@ -137,11 +147,11 @@ protected void initEntityAI() {
     }
 
     @Override
-public boolean processInteract(EntityPlayer player, EnumHand hand) {
-    if (this.world.isRemote) {
-        com.anyamod.AnyaMod.proxy.openAnyaGui(this, player);
-    }
-    return true;
+    public boolean processInteract(EntityPlayer player, EnumHand hand) {
+        if (this.world.isRemote) {
+            com.anyamod.AnyaMod.proxy.openAnyaGui(this, player);
+        }
+        return true;
     }
 
     // ==================== СИСТЕМА ЖИВІВ ====================
@@ -155,63 +165,47 @@ public boolean processInteract(EntityPlayer player, EnumHand hand) {
         return this.homePos;
     }
 
-    private EntityPlayer guiViewer;
-
-public void setGuiViewer(EntityPlayer viewer) {
-    this.guiViewer = viewer;
-    }
-
-public EntityPlayer getGuiViewer() {
-    return this.guiViewer;
-    }
-
     public boolean hasHome() {
         return this.hasHome;
     }
 
+    /**
+     * Тепер читає значення з dataManager - синхронізоване сервер->клієнт,
+     * тому GuiAnyaInterface на клієнті бачить актуальне число.
+     */
     public int getLives() {
-        return this.livesCount;
+        return this.dataManager.get(LIVES);
     }
 
-    /**
-     * Встановити кількість життів напряму. Використовується при респавні,
-     * щоб перенести реальний залишок життів у нову сутність
-     * (замість того, щоб вона завжди створювалась з дефолтних 5).
-     */
     public void setLives(int lives) {
         if (lives < 0) lives = 0;
         if (lives > MAX_LIVES) lives = MAX_LIVES;
-        this.livesCount = lives;
+        this.dataManager.set(LIVES, lives);
         this.isDeadForever = (lives <= 0);
     }
 
-    /**
-     * Позбавити одного життя. Повертає true якщо ще живе.
-     */
     public boolean loseLife() {
         if (this.isDeadForever) {
             return false;
         }
 
-        this.livesCount--;
-
-        if (this.livesCount <= 0) {
+        int newLives = this.getLives() - 1;
+        if (newLives <= 0) {
+            newLives = 0;
             this.isDeadForever = true;
-            this.livesCount = 0;
         }
+        this.dataManager.set(LIVES, newLives);
 
-        return this.livesCount > 0;
+        return newLives > 0;
     }
 
-    /**
-     * Додати одне життя (наприклад, на початку нового дня). Не перевищує MAX_LIVES.
-     */
     public void addLife() {
         if (this.isDeadForever) {
-            return; // мертва назавжди - воскресити цим методом не можна
+            return;
         }
-        if (this.livesCount < MAX_LIVES) {
-            this.livesCount++;
+        int current = this.getLives();
+        if (current < MAX_LIVES) {
+            this.dataManager.set(LIVES, current + 1);
         }
     }
 
@@ -223,15 +217,22 @@ public EntityPlayer getGuiViewer() {
         return MAX_LIVES;
     }
 
+    public void setGuiViewer(EntityPlayer viewer) {
+        this.guiViewer = viewer;
+    }
+
+    public EntityPlayer getGuiViewer() {
+        return this.guiViewer;
+    }
+
     // ==================== NBT ЗБЕРЕЖЕННЯ ====================
 
     @Override
     public void readEntityFromNBT(NBTTagCompound compound) {
         super.readEntityFromNBT(compound);
 
-        this.livesCount = compound.getInteger(NBT_LIVES);
-        if (this.livesCount <= 0) this.livesCount = 0;
-        if (this.livesCount > MAX_LIVES) this.livesCount = MAX_LIVES;
+        int lives = compound.getInteger(NBT_LIVES);
+        this.setLives(lives); // ЗМІНЕНО - пише через dataManager, а не поле напряму
 
         this.hasHome = compound.getBoolean(NBT_HAS_HOME);
         if (this.hasHome) {
@@ -248,7 +249,7 @@ public EntityPlayer getGuiViewer() {
     public void writeEntityToNBT(NBTTagCompound compound) {
         super.writeEntityToNBT(compound);
 
-        compound.setInteger(NBT_LIVES, this.livesCount);
+        compound.setInteger(NBT_LIVES, this.getLives()); // ЗМІНЕНО - читає через dataManager
 
         compound.setBoolean(NBT_HAS_HOME, this.hasHome);
         if (this.hasHome) {
@@ -259,4 +260,4 @@ public EntityPlayer getGuiViewer() {
 
         compound.setBoolean(NBT_IS_DEAD_FOREVER, this.isDeadForever);
     }
-}
+    }
