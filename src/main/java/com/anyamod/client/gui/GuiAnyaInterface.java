@@ -1,26 +1,22 @@
 package com.anyamod.client.gui;
 
 import com.anyamod.entity.EntityAnya;
+import com.anyamod.network.AnyaNetwork;
+import com.anyamod.network.PacketAnyaGuiState;
 import net.minecraft.client.gui.GuiScreen;
 import net.minecraft.client.renderer.GlStateManager;
 import net.minecraft.util.ResourceLocation;
 
 import java.io.IOException;
 
-/**
- * Кастомний інтерфейс Ані. Відкривається правим кліком (EntityAnya.processInteract).
- * Наразі малює тільки хардкорні серця (житя) у верхньому правому куті -
- * решта інтерфейсу буде додана пізніше.
- */
 public class GuiAnyaInterface extends GuiScreen {
 
     private static final ResourceLocation ICONS = new ResourceLocation("textures/gui/icons.png");
 
-    // Підкрутіть ці числа під ваш макет, якщо розмір/позиція трохи не збігаються
-    private static final int HEART_SIZE = 18;        // розмір одного серця на екрані (px)
-    private static final int HEART_SPACING = 20;     // відстань між серцями (px)
-    private static final int MARGIN_TOP = 20;         // відступ від верху екрана
-    private static final int MARGIN_RIGHT = 20;       // відступ від правого краю екрана
+    private static final int HEART_SIZE = 18;
+    private static final int HEART_SPACING = 20;
+    private static final int MARGIN_TOP = 20;
+    private static final int MARGIN_RIGHT = 20;
 
     private final EntityAnya anya;
 
@@ -29,12 +25,24 @@ public class GuiAnyaInterface extends GuiScreen {
     }
 
     @Override
+    public void initGui() {
+        super.initGui();
+        // Повідомляємо сервер, що гравець відкрив UI - Аня завмре і дивитиметься на нього
+        AnyaNetwork.CHANNEL.sendToServer(new PacketAnyaGuiState(this.anya.getEntityId(), true));
+    }
+
+    @Override
+    public void onGuiClosed() {
+        super.onGuiClosed();
+        // Повідомляємо сервер про закриття - Аня повертається до звичайного AI
+        AnyaNetwork.CHANNEL.sendToServer(new PacketAnyaGuiState(this.anya.getEntityId(), false));
+    }
+
+    @Override
     public void drawScreen(int mouseX, int mouseY, float partialTicks) {
-        // Затемнений фон - те, що приховує хотбар/інвентар гравця замість нього
-        this.drawDefaultBackground();
-
+        // Затемнення прибрано - інтерфейс прозорий, HUD ховається окремо через
+        // AnyaGuiOverlayHandler, а не через темний фон.
         this.drawHearts();
-
         super.drawScreen(mouseX, mouseY, partialTicks);
     }
 
@@ -50,13 +58,10 @@ public class GuiAnyaInterface extends GuiScreen {
         int startX = this.width - MARGIN_RIGHT - totalWidth;
         int y = MARGIN_TOP;
 
-        // i=0 - лівий, i=maxLives-1 - правий. Життя заповнюються зліва,
-        // тому втрачені (чорні) серця завжди з правого краю ряду.
         for (int i = 0; i < maxLives; i++) {
             int x = startX + i * HEART_SPACING;
             boolean filled = i < lives;
 
-            // Хардкорні серця в icons.png лежать на 45px нижче звичайних (5 рядків по 9px)
             int u = filled ? 52 : 16;
             int v = 45;
 
@@ -78,7 +83,6 @@ public class GuiAnyaInterface extends GuiScreen {
 
     @Override
     public boolean doesGuiPauseGame() {
-        // Не ставимо гру на пауза - це інтерфейс взаємодії, не меню
         return false;
     }
 }
