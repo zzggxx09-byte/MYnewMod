@@ -26,7 +26,8 @@ public class AnyaMod {
 
     @EventHandler
     public void preInit(FMLPreInitializationEvent event) {
-        com.anyamod.network.AnyaNetwork.init(); // ДОДАНО - реєстрація мережевого каналу
+        software.bernie.geckolib3.GeckoLib.initialize(); // ДОДАНО - обов'язкова ініціалізація GeckoLib
+        com.anyamod.network.AnyaNetwork.init();
         proxy.registerRenderers();
     }
 }
