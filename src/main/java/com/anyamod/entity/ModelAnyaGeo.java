@@ -1,7 +1,7 @@
 package com.anyamod.entity;
 
 import net.minecraft.util.ResourceLocation;
-import software.bernie.geckolib3.geo.render.built.GeoBone;
+import software.bernie.geckolib3.core.processor.IBone;
 import software.bernie.geckolib3.model.AnimatedGeoModel;
 
 public class ModelAnyaGeo extends AnimatedGeoModel<EntityAnya> {
@@ -25,9 +25,7 @@ public class ModelAnyaGeo extends AnimatedGeoModel<EntityAnya> {
     public void setLivingAnimations(EntityAnya entity, Integer uniqueID, software.bernie.geckolib3.core.event.predicate.AnimationEvent customPredicate) {
         super.setLivingAnimations(entity, uniqueID, customPredicate);
 
-        // ДОДАНО: окремий поворот кістки "Head" - голова дивиться на гравця,
-        // тіло лишається повернутим за напрямком руху/AI.
-        GeoBone head = this.getAnimationProcessor().getBone("Head");
+        IBone head = this.getAnimationProcessor().getBone("Head");
         if (head != null) {
             head.setRotationZ(0);
             head.setRotationY((float) Math.toRadians(entity.rotationYawHead - entity.renderYawOffset));
