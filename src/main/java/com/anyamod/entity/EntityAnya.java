@@ -19,11 +19,22 @@ import net.minecraft.util.EnumHand;
 import net.minecraft.util.SoundEvent;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.world.World;
+import software.bernie.geckolib3.core.IAnimatable;
+import software.bernie.geckolib3.core.PlayState;
+import software.bernie.geckolib3.core.builder.AnimationBuilder;
+import software.bernie.geckolib3.core.controller.AnimationController;
+import software.bernie.geckolib3.core.event.predicate.AnimationEvent;
+import software.bernie.geckolib3.core.manager.AnimationData;
+import software.bernie.geckolib3.core.manager.AnimationFactory;
 
 /**
  * Anya - кастомний моб з AI та системою 5 живів
  */
-public class EntityAnya extends EntityCreature {
+public class EntityAnya extends EntityCreature implements IAnimatable {
+
+    // ==================== GECKOLIB АНІМАЦІЯ ====================
+
+    private final AnimationFactory factory = new AnimationFactory(this);
 
     // ==================== AI ПАРАМЕТРИ ====================
 
@@ -41,7 +52,6 @@ public class EntityAnya extends EntityCreature {
 
     private static final int MAX_LIVES = 5;
 
-    // ДОДАНО: синхронізований параметр - сервер записує, клієнт автоматично отримує оновлення.
     private static final DataParameter<Integer> LIVES =
             EntityDataManager.createKey(EntityAnya.class, DataSerializers.VARINT);
 
@@ -70,7 +80,7 @@ public class EntityAnya extends EntityCreature {
     @Override
     protected void entityInit() {
         super.entityInit();
-        this.dataManager.register(LIVES, MAX_LIVES); // ДОДАНО - реєстрація синхронізованого поля
+        this.dataManager.register(LIVES, MAX_LIVES);
     }
 
     // ==================== AI ІНІЦІАЛІЗАЦІЯ ====================
@@ -96,8 +106,8 @@ public class EntityAnya extends EntityCreature {
     }
 
     @Override
-protected boolean canDespawn() {
-    return false;
+    protected boolean canDespawn() {
+        return false;
     }
 
     @Override
@@ -174,10 +184,6 @@ protected boolean canDespawn() {
         return this.hasHome;
     }
 
-    /**
-     * Тепер читає значення з dataManager - синхронізоване сервер->клієнт,
-     * тому GuiAnyaInterface на клієнті бачить актуальне число.
-     */
     public int getLives() {
         return this.dataManager.get(LIVES);
     }
@@ -237,7 +243,7 @@ protected boolean canDespawn() {
         super.readEntityFromNBT(compound);
 
         int lives = compound.getInteger(NBT_LIVES);
-        this.setLives(lives); // ЗМІНЕНО - пише через dataManager, а не поле напряму
+        this.setLives(lives);
 
         this.hasHome = compound.getBoolean(NBT_HAS_HOME);
         if (this.hasHome) {
@@ -254,7 +260,7 @@ protected boolean canDespawn() {
     public void writeEntityToNBT(NBTTagCompound compound) {
         super.writeEntityToNBT(compound);
 
-        compound.setInteger(NBT_LIVES, this.getLives()); // ЗМІНЕНО - читає через dataManager
+        compound.setInteger(NBT_LIVES, this.getLives());
 
         compound.setBoolean(NBT_HAS_HOME, this.hasHome);
         if (this.hasHome) {
@@ -265,4 +271,25 @@ protected boolean canDespawn() {
 
         compound.setBoolean(NBT_IS_DEAD_FOREVER, this.isDeadForever);
     }
+
+    // ==================== АНІМАЦІЯ (GeckoLib) ====================
+
+    private <E extends IAnimatable> PlayState predicate(AnimationEvent<E> event) {
+        if (event.isMoving()) {
+            event.getController().setAnimation(new AnimationBuilder().addAnimation("animation.anya.walk", true));
+        } else {
+            event.getController().setAnimation(new AnimationBuilder().addAnimation("animation.anya.idle", true));
+        }
+        return PlayState.CONTINUE;
     }
+
+    @Override
+    public void registerControllers(AnimationData data) {
+        data.addAnimationController(new AnimationController<>(this, "controller", 0, this::predicate));
+    }
+
+    @Override
+    public AnimationFactory getFactory() {
+        return this.factory;
+    }
+}
