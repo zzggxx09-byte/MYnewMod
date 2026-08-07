@@ -2,8 +2,12 @@ package com.anyamod.client.gui;
 
 import com.anyamod.AnyaMod;
 import com.anyamod.entity.EntityAnya;
+import com.anyamod.network.AnyaNetwork;
+import com.anyamod.network.PacketAnyaGuiState;
+import net.minecraft.client.audio.PositionedSoundRecord;
 import net.minecraft.client.gui.GuiScreen;
 import net.minecraft.client.renderer.GlStateManager;
+import net.minecraft.init.SoundEvents;
 import net.minecraft.util.ResourceLocation;
 
 import java.io.IOException;
@@ -41,6 +45,9 @@ public class GuiAnyaInterface extends GuiScreen {
     private static final int SIDE_ICON_MARGIN_LEFT = 20;
     private static final int SIDE_ICON_MARGIN_TOP = 20;
 
+    // Підписи для тултіпів у тому ж порядку, що й іконки/таби нижче
+    private static final String[] TAB_TOOLTIPS = { "Inventory", "Clothing", "Stats" };
+
     private enum Tab { INVENTORY, CLOTHES, STATS }
 
     private Tab currentTab = Tab.CLOTHES;
@@ -60,86 +67,140 @@ public class GuiAnyaInterface extends GuiScreen {
     public void initGui() {
         super.initGui();
         this.openTime = System.currentTimeMillis();
+        AnyaNetwork.CHANNEL.sendToServer(new PacketAnyaGuiState(this.anya.getEntityId(), true));
+    }
+
+    @Override
+    public void onGuiClosed() {
+        super.onGuiClosed();
+        AnyaNetwork.CHANNEL.sendToServer(new PacketAnyaGuiState(this.anya.getEntityId(), false));
     }
 
     @Override
     public void drawScreen(int mouseX, int mouseY, float partialTicks) {
-        this.drawDefaultBackground();
+        float progress = this.getAnimationProgress();
+
+        this.drawHearts(progress);
+        this.drawSideIcons(mouseX, mouseY, progress);
+
         super.drawScreen(mouseX, mouseY, partialTicks);
+    }
 
-        // Розрахунок координат бокових іконок
-        int heartX = SIDE_ICON_MARGIN_LEFT;
-        int heartY = SIDE_ICON_MARGIN_TOP;
+    private float getAnimationProgress() {
+        long elapsedTime = System.currentTimeMillis() - this.openTime;
+        float progress = Math.min(1.0F, (float) elapsedTime / ANIMATION_DURATION_MS);
+        return progress * progress * (3.0F - 2.0F * progress); // smoothstep
+    }
 
-        int shirtX = SIDE_ICON_MARGIN_LEFT;
-        int shirtY = SIDE_ICON_MARGIN_TOP + SIDE_ICON_SPACING;
+    private void drawHearts(float progress) {
+        int maxLives = this.anya.getMaxLives();
+        int lives = this.anya.getLives();
 
-        int backpackX = SIDE_ICON_MARGIN_LEFT;
-        int backpackY = SIDE_ICON_MARGIN_TOP + (SIDE_ICON_SPACING * 2);
+        if (maxLives <= 0) return;
 
-        // 1. Отрисовка іконок (Звичайна / Hover)
         GlStateManager.color(1.0F, 1.0F, 1.0F, 1.0F);
+        GlStateManager.enableBlend();
 
-        // Серце (Indicators / STATS)
-        boolean isHeartHovered = isHovered(heartX, heartY, SIDE_ICON_SIZE, SIDE_ICON_SIZE, mouseX, mouseY);
-        this.mc.getTextureManager().bindTexture(isHeartHovered ? ICON_HEART_HOVER : ICON_HEART);
-        drawModalRectWithCustomSizedTexture(heartX, heartY, 0, 0, SIDE_ICON_SIZE, SIDE_ICON_SIZE, SIDE_ICON_SIZE, SIDE_ICON_SIZE);
+        int totalWidth = (maxLives - 1) * HEART_SPACING + HEART_SIZE;
+        int startX = (this.width - totalWidth) / 2;
 
-        // Футболка (Clothing / CLOTHES)
-        boolean isShirtHovered = isHovered(shirtX, shirtY, SIDE_ICON_SIZE, SIDE_ICON_SIZE, mouseX, mouseY);
-        this.mc.getTextureManager().bindTexture(isShirtHovered ? ICON_SHIRT_HOVER : ICON_SHIRT);
-        drawModalRectWithCustomSizedTexture(shirtX, shirtY, 0, 0, SIDE_ICON_SIZE, SIDE_ICON_SIZE, SIDE_ICON_SIZE, SIDE_ICON_SIZE);
+        int targetY = this.height - MARGIN_BOTTOM - HEART_SIZE;
+        int startY = this.height + 10;
+        int currentY = (int) (startY + (targetY - startY) * progress);
 
-        // Рюкзак (Inventory / INVENTORY)
-        boolean isBackpackHovered = isHovered(backpackX, backpackY, SIDE_ICON_SIZE, SIDE_ICON_SIZE, mouseX, mouseY);
-        this.mc.getTextureManager().bindTexture(isBackpackHovered ? ICON_BACKPACK_HOVER : ICON_BACKPACK);
-        drawModalRectWithCustomSizedTexture(backpackX, backpackY, 0, 0, SIDE_ICON_SIZE, SIDE_ICON_SIZE, SIDE_ICON_SIZE, SIDE_ICON_SIZE);
+        for (int i = 0; i < maxLives; i++) {
+            int x = startX + i * HEART_SPACING;
+            boolean filled = i < lives;
 
-        // ==================== СПЛИВАЮЧІ ПІДКАЗКИ (TOOLTIPS) ====================
-        // Отрисовка підказок викликається в самому кінці, щоб вони були поверх усіх елементів GUI
-
-        if (isHeartHovered) {
-            this.drawHoveringText(Collections.singletonList("Indicators"), mouseX, mouseY);
-        } else if (isShirtHovered) {
-            this.drawHoveringText(Collections.singletonList("Clothing"), mouseX, mouseY);
-        } else if (isBackpackHovered) {
-            this.drawHoveringText(Collections.singletonList("Inventory"), mouseX, mouseY);
+            this.mc.getTextureManager().bindTexture(filled ? HEART_FULL : HEART_EMPTY);
+            this.drawScaledCustomSizeModalRect(x, currentY, 0, 0, 16, 16, HEART_SIZE, HEART_SIZE, 16, 16);
         }
+
+        GlStateManager.disableBlend();
+    }
+
+    /**
+     * Три іконки зліва (рюкзак/футболка/серце) - виїжджають з-за лівого краю екрана,
+     * при наведенні картинка підміняється на hover-варіант, клік грає звук.
+     * При наведенні також показується підказка (тултіп) з назвою кнопки.
+     */
+    private void drawSideIcons(int mouseX, int mouseY, float progress) {
+        GlStateManager.color(1.0F, 1.0F, 1.0F, 1.0F);
+        GlStateManager.enableBlend();
+
+        int targetX = SIDE_ICON_MARGIN_LEFT;
+        int startX = -SIDE_ICON_SIZE - 10;
+        int currentX = (int) (startX + (targetX - startX) * progress);
+
+        ResourceLocation[] iconsNormal = { ICON_BACKPACK, ICON_SHIRT, ICON_HEART };
+        ResourceLocation[] iconsHover = { ICON_BACKPACK_HOVER, ICON_SHIRT_HOVER, ICON_HEART_HOVER };
+
+        int hoveredIndex = -1;
+
+        for (int i = 0; i < iconsNormal.length; i++) {
+            int y = SIDE_ICON_MARGIN_TOP + i * SIDE_ICON_SPACING;
+            boolean hovered = this.isMouseOverIcon(mouseX, mouseY, currentX, y);
+            if (hovered) {
+                hoveredIndex = i;
+            }
+
+            ResourceLocation texture = hovered ? iconsHover[i] : iconsNormal[i];
+
+            this.mc.getTextureManager().bindTexture(texture);
+            this.drawScaledCustomSizeModalRect(currentX, y, 0, 0, 16, 16, SIDE_ICON_SIZE, SIDE_ICON_SIZE, 16, 16);
+        }
+
+        GlStateManager.disableBlend();
+
+        // Тултіп малюємо останнім, щоб він був поверх усіх іконок
+        if (hoveredIndex != -1) {
+            this.drawHoveringText(Collections.singletonList(TAB_TOOLTIPS[hoveredIndex]), mouseX, mouseY);
+        }
+    }
+
+    private boolean isMouseOverIcon(int mouseX, int mouseY, int iconX, int iconY) {
+        return mouseX >= iconX && mouseX <= iconX + SIDE_ICON_SIZE
+                && mouseY >= iconY && mouseY <= iconY + SIDE_ICON_SIZE;
     }
 
     @Override
     protected void mouseClicked(int mouseX, int mouseY, int mouseButton) throws IOException {
         super.mouseClicked(mouseX, mouseY, mouseButton);
 
-        if (mouseButton == 0) { // Лівий клік миші
-            int heartX = SIDE_ICON_MARGIN_LEFT;
-            int heartY = SIDE_ICON_MARGIN_TOP;
+        if (mouseButton != 0) return; // тільки ліва кнопка миші
 
-            int shirtX = SIDE_ICON_MARGIN_LEFT;
-            int shirtY = SIDE_ICON_MARGIN_TOP + SIDE_ICON_SPACING;
+        int targetX = SIDE_ICON_MARGIN_LEFT;
+        Tab[] tabs = { Tab.INVENTORY, Tab.CLOTHES, Tab.STATS };
 
-            int backpackX = SIDE_ICON_MARGIN_LEFT;
-            int backpackY = SIDE_ICON_MARGIN_TOP + (SIDE_ICON_SPACING * 2);
-
-            if (isHovered(heartX, heartY, SIDE_ICON_SIZE, SIDE_ICON_SIZE, mouseX, mouseY)) {
-                this.currentTab = Tab.STATS;
-            } else if (isHovered(shirtX, shirtY, SIDE_ICON_SIZE, SIDE_ICON_SIZE, mouseX, mouseY)) {
-                this.currentTab = Tab.CLOTHES;
-            } else if (isHovered(backpackX, backpackY, SIDE_ICON_SIZE, SIDE_ICON_SIZE, mouseX, mouseY)) {
-                this.currentTab = Tab.INVENTORY;
+        for (int i = 0; i < tabs.length; i++) {
+            int y = SIDE_ICON_MARGIN_TOP + i * SIDE_ICON_SPACING;
+            if (this.isMouseOverIcon(mouseX, mouseY, targetX, y)) {
+                this.currentTab = tabs[i];
+                this.playClickSound();
+                // TODO: тут пізніше підключимо реальне перемикання вмісту вкладки
+                break;
             }
         }
+    }
+
+    private void playClickSound() {
+        this.mc.getSoundHandler().playSound(
+                PositionedSoundRecord.getMasterRecord(SoundEvents.UI_BUTTON_CLICK, 1.0F)
+        );
+    }
+
+    @Override
+    protected void keyTyped(char typedChar, int keyCode) throws IOException {
+        if (keyCode == 1) { // ESC
+            this.mc.displayGuiScreen(null);
+            this.mc.setIngameFocus();
+            return;
+        }
+        super.keyTyped(typedChar, keyCode);
     }
 
     @Override
     public boolean doesGuiPauseGame() {
         return false;
     }
-
-    /**
-     * Допоміжний метод перевірки чи знаходиться курсор у межах області
-     */
-    private boolean isHovered(int x, int y, int width, int height, int mouseX, int mouseY) {
-        return mouseX >= x && mouseX < x + width && mouseY >= y && mouseY < y + height;
-    }
-    }
+}
