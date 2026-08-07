@@ -11,6 +11,8 @@ import net.minecraft.init.SoundEvents;
 import net.minecraft.util.ResourceLocation;
 
 import java.io.IOException;
+import java.util.ArrayList;
+import java.util.List;
 
 public class GuiAnyaInterface extends GuiScreen {
 
@@ -23,7 +25,7 @@ public class GuiAnyaInterface extends GuiScreen {
     private static final int HEART_SPACING = 28;
     private static final int MARGIN_BOTTOM = 10;
 
-    // ==================== БІЧНІ ІКОНКИ (рюкзак / футболка / серце) ====================
+    // ==================== БІЧНІ ІКОНКИ-ВКЛАДКИ (рюкзак / футболка / серце) ====================
 
     private static final ResourceLocation ICON_BACKPACK =
             new ResourceLocation(AnyaMod.MODID, "textures/gui/icon_backpack.png");
@@ -44,9 +46,67 @@ public class GuiAnyaInterface extends GuiScreen {
     private static final int SIDE_ICON_MARGIN_LEFT = 20;
     private static final int SIDE_ICON_MARGIN_TOP = 20;
 
+    // ==================== СЛОТИ ОДЯГУ (з'являються у вкладці "Футболка") ====================
+
+    private static final ResourceLocation ICON_HAT =
+            new ResourceLocation(AnyaMod.MODID, "textures/gui/slot_hat.png");
+    private static final ResourceLocation ICON_BRA =
+            new ResourceLocation(AnyaMod.MODID, "textures/gui/slot_bra.png");
+    private static final ResourceLocation ICON_TANKTOP =
+            new ResourceLocation(AnyaMod.MODID, "textures/gui/slot_tanktop.png");
+    private static final ResourceLocation ICON_JACKET =
+            new ResourceLocation(AnyaMod.MODID, "textures/gui/slot_jacket.png");
+    private static final ResourceLocation ICON_PANTIES =
+            new ResourceLocation(AnyaMod.MODID, "textures/gui/slot_panties.png");
+    private static final ResourceLocation ICON_SHORTS =
+            new ResourceLocation(AnyaMod.MODID, "textures/gui/slot_shorts.png");
+    private static final ResourceLocation ICON_SHOES =
+            new ResourceLocation(AnyaMod.MODID, "textures/gui/slot_shoes.png");
+
+    private static final ResourceLocation ICON_REVERSE =
+            new ResourceLocation(AnyaMod.MODID, "textures/gui/icon_reverse.png");
+
+    private static final int SLOT_SIZE = 32;
+    private static final int SLOT_SPACING = 40; // крок між слотами (і по X, і по Y)
+
+    // Опис одного слоту одягу: у якому рядку/стовпці грід-сітки він стоїть
+    private static class ClothingSlotDef {
+        final ResourceLocation icon;
+        final int col; // -1 = ліва колонка, 0 = центр, 1 = права колонка
+        final int row; // 0 = верхній ряд і далі вниз
+
+        ClothingSlotDef(ResourceLocation icon, int col, int row) {
+            this.icon = icon;
+            this.col = col;
+            this.row = row;
+        }
+    }
+
+    private final List<ClothingSlotDef> clothingSlots = buildClothingSlots();
+
+    private static List<ClothingSlotDef> buildClothingSlots() {
+        List<ClothingSlotDef> list = new ArrayList<>();
+        list.add(new ClothingSlotDef(ICON_HAT, 0, 0));       // капелюх - центр, верхній ряд
+
+        list.add(new ClothingSlotDef(ICON_BRA, -1, 1));      // ліфчик - ліва колонка
+        list.add(new ClothingSlotDef(ICON_TANKTOP, 0, 1));   // футболка - центр
+        list.add(new ClothingSlotDef(ICON_JACKET, 1, 1));    // куртка - права колонка
+
+        list.add(new ClothingSlotDef(ICON_PANTIES, -1, 2));  // трусики - ліва колонка
+        list.add(new ClothingSlotDef(ICON_SHORTS, 0, 2));    // шорти - центр
+
+        list.add(new ClothingSlotDef(ICON_SHOES, 0, 3));     // взуття - центр, нижній ряд
+        return list;
+    }
+
+    private static final int CLOTHING_PANEL_OFFSET_X = 60; // відступ панелі одягу від колонки вкладок
+    private static final int REVERSE_BUTTON_SIZE = 28;
+    private static final int REVERSE_BUTTON_MARGIN_BOTTOM = 20;
+
     private enum Tab { INVENTORY, CLOTHES, STATS }
 
     private Tab currentTab = Tab.CLOTHES;
+    private long tabSwitchTime; // момент останнього перемикання вкладки - для анімації появи панелі
 
     // ==================== АНІМАЦІЯ ====================
 
@@ -63,6 +123,7 @@ public class GuiAnyaInterface extends GuiScreen {
     public void initGui() {
         super.initGui();
         this.openTime = System.currentTimeMillis();
+        this.tabSwitchTime = this.openTime;
         AnyaNetwork.CHANNEL.sendToServer(new PacketAnyaGuiState(this.anya.getEntityId(), true));
     }
 
@@ -74,16 +135,21 @@ public class GuiAnyaInterface extends GuiScreen {
 
     @Override
     public void drawScreen(int mouseX, int mouseY, float partialTicks) {
-        float progress = this.getAnimationProgress();
+        float openProgress = this.computeProgress(this.openTime);
+        float tabProgress = this.computeProgress(this.tabSwitchTime);
 
-        this.drawHearts(progress);
-        this.drawSideIcons(mouseX, mouseY, progress);
+        this.drawHearts(openProgress);
+        this.drawSideIcons(mouseX, mouseY, openProgress);
+
+        if (this.currentTab == Tab.CLOTHES) {
+            this.drawClothingPanel(mouseX, mouseY, tabProgress);
+        }
 
         super.drawScreen(mouseX, mouseY, partialTicks);
     }
 
-    private float getAnimationProgress() {
-        long elapsedTime = System.currentTimeMillis() - this.openTime;
+    private float computeProgress(long since) {
+        long elapsedTime = System.currentTimeMillis() - since;
         float progress = Math.min(1.0F, (float) elapsedTime / ANIMATION_DURATION_MS);
         return progress * progress * (3.0F - 2.0F * progress); // smoothstep
     }
@@ -115,14 +181,7 @@ public class GuiAnyaInterface extends GuiScreen {
         GlStateManager.disableBlend();
     }
 
-    /**
-     * Три іконки зліва (рюкзак/футболка/серце) - виїжджають з-за лівого краю екрана,
-     * при наведенні картинка підміняється на hover-варіант, клік грає звук.
-     */
     private void drawSideIcons(int mouseX, int mouseY, float progress) {
-        GlStateManager.color(1.0F, 1.0F, 1.0F, 1.0F);
-        GlStateManager.enableBlend();
-
         int targetX = SIDE_ICON_MARGIN_LEFT;
         int startX = -SIDE_ICON_SIZE - 10;
         int currentX = (int) (startX + (targetX - startX) * progress);
@@ -132,38 +191,91 @@ public class GuiAnyaInterface extends GuiScreen {
 
         for (int i = 0; i < iconsNormal.length; i++) {
             int y = SIDE_ICON_MARGIN_TOP + i * SIDE_ICON_SPACING;
-            boolean hovered = this.isMouseOverIcon(mouseX, mouseY, currentX, y);
+            this.drawIconButton(currentX, y, SIDE_ICON_SIZE, iconsNormal[i], iconsHover[i], mouseX, mouseY);
+        }
+    }
 
-            ResourceLocation texture = hovered ? iconsHover[i] : iconsNormal[i];
+    /**
+     * Панель одягу - з'являється справа від колонки вкладок, коли обрано Tab.CLOTHES.
+     * Плюс окрема кнопка "reverse" знизу біля колонки вкладок.
+     */
+    private void drawClothingPanel(int mouseX, int mouseY, float progress) {
+        int baseX = SIDE_ICON_MARGIN_LEFT + SIDE_ICON_SIZE + CLOTHING_PANEL_OFFSET_X;
+        int baseY = SIDE_ICON_MARGIN_TOP;
 
-            this.mc.getTextureManager().bindTexture(texture);
-            this.drawScaledCustomSizeModalRect(currentX, y, 0, 0, 16, 16, SIDE_ICON_SIZE, SIDE_ICON_SIZE, 16, 16);
+        // Легке виїжджання панелі одягу зверху вниз під час перемикання вкладки
+        int slideOffset = (int) ((1.0F - progress) * 15);
+
+        for (ClothingSlotDef slot : this.clothingSlots) {
+            int x = baseX + slot.col * SLOT_SPACING;
+            int y = baseY + slot.row * SLOT_SPACING - slideOffset;
+
+            GlStateManager.color(1.0F, 1.0F, 1.0F, progress); // фейд-ін разом зі слайдом
+            this.drawIconButtonNoColorReset(x, y, SLOT_SIZE, slot.icon, slot.icon, mouseX, mouseY);
         }
 
+        // Кнопка "reverse" - знизу біля колонки вкладок
+        int reverseX = SIDE_ICON_MARGIN_LEFT;
+        int reverseY = this.height - REVERSE_BUTTON_MARGIN_BOTTOM - REVERSE_BUTTON_SIZE;
+        GlStateManager.color(1.0F, 1.0F, 1.0F, progress);
+        this.drawIconButtonNoColorReset(reverseX, reverseY, REVERSE_BUTTON_SIZE, ICON_REVERSE, ICON_REVERSE, mouseX, mouseY);
+
+        GlStateManager.color(1.0F, 1.0F, 1.0F, 1.0F);
+    }
+
+    /**
+     * Малює квадратну кнопку-іконку: звичайна текстура, або hover-варіант при наведенні.
+     */
+    private void drawIconButton(int x, int y, int size, ResourceLocation normal, ResourceLocation hover, int mouseX, int mouseY) {
+        GlStateManager.color(1.0F, 1.0F, 1.0F, 1.0F);
+        GlStateManager.enableBlend();
+        this.drawIconButtonNoColorReset(x, y, size, normal, hover, mouseX, mouseY);
         GlStateManager.disableBlend();
     }
 
-    private boolean isMouseOverIcon(int mouseX, int mouseY, int iconX, int iconY) {
-        return mouseX >= iconX && mouseX <= iconX + SIDE_ICON_SIZE
-                && mouseY >= iconY && mouseY <= iconY + SIDE_ICON_SIZE;
+    // Варіант без скидання кольору/бленду - для використання всередині drawClothingPanel,
+    // де альфа-канал (фейд-ін) вже виставлений заздалегідь через GlStateManager.color(...).
+    private void drawIconButtonNoColorReset(int x, int y, int size, ResourceLocation normal, ResourceLocation hover, int mouseX, int mouseY) {
+        boolean hovered = mouseX >= x && mouseX <= x + size && mouseY >= y && mouseY <= y + size;
+        this.mc.getTextureManager().bindTexture(hovered ? hover : normal);
+        this.drawScaledCustomSizeModalRect(x, y, 0, 0, 16, 16, size, size, 16, 16);
     }
 
     @Override
     protected void mouseClicked(int mouseX, int mouseY, int mouseButton) throws IOException {
         super.mouseClicked(mouseX, mouseY, mouseButton);
 
-        if (mouseButton != 0) return; // тільки ліва кнопка миші
+        if (mouseButton != 0) return;
 
-        int targetX = SIDE_ICON_MARGIN_LEFT;
+        // Клік по вкладках зверху
+        int tabX = SIDE_ICON_MARGIN_LEFT;
         Tab[] tabs = { Tab.INVENTORY, Tab.CLOTHES, Tab.STATS };
 
         for (int i = 0; i < tabs.length; i++) {
             int y = SIDE_ICON_MARGIN_TOP + i * SIDE_ICON_SPACING;
-            if (this.isMouseOverIcon(mouseX, mouseY, targetX, y)) {
-                this.currentTab = tabs[i];
+            if (mouseX >= tabX && mouseX <= tabX + SIDE_ICON_SIZE && mouseY >= y && mouseY <= y + SIDE_ICON_SIZE) {
+                if (this.currentTab != tabs[i]) {
+                    this.currentTab = tabs[i];
+                    this.tabSwitchTime = System.currentTimeMillis(); // перезапускаємо анімацію появи панелі
+                }
                 this.playClickSound();
-                // TODO: тут пізніше підключимо реальне перемикання вмісту вкладки
-                break;
+                return;
+            }
+        }
+
+        // Клік по кожному окремому слоту одягу (поки без реальної логіки одягання - TODO)
+        if (this.currentTab == Tab.CLOTHES) {
+            int baseX = SIDE_ICON_MARGIN_LEFT + SIDE_ICON_SIZE + CLOTHING_PANEL_OFFSET_X;
+            int baseY = SIDE_ICON_MARGIN_TOP;
+
+            for (ClothingSlotDef slot : this.clothingSlots) {
+                int x = baseX + slot.col * SLOT_SPACING;
+                int y = baseY + slot.row * SLOT_SPACING;
+                if (mouseX >= x && mouseX <= x + SLOT_SIZE && mouseY >= y && mouseY <= y + SLOT_SIZE) {
+                    this.playClickSound();
+                    // TODO: відкрити вибір предмета для цього слоту одягу
+                    return;
+                }
             }
         }
     }
@@ -188,4 +300,4 @@ public class GuiAnyaInterface extends GuiScreen {
     public boolean doesGuiPauseGame() {
         return false;
     }
-}
+    }
