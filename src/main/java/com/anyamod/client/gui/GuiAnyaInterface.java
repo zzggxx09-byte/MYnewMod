@@ -4,14 +4,20 @@ import com.anyamod.AnyaMod;
 import com.anyamod.entity.EntityAnya;
 import com.anyamod.network.AnyaNetwork;
 import com.anyamod.network.PacketAnyaGuiState;
+import com.anyamod.network.PacketDropItemFromAnya;
 import net.minecraft.client.audio.PositionedSoundRecord;
 import net.minecraft.client.gui.GuiScreen;
 import net.minecraft.client.renderer.GlStateManager;
+import net.minecraft.client.renderer.RenderHelper;
+import net.minecraft.client.renderer.RenderItem;
 import net.minecraft.init.SoundEvents;
+import net.minecraft.item.ItemStack;
 import net.minecraft.util.ResourceLocation;
+import net.minecraftforge.items.ItemStackHandler;
 
 import java.io.IOException;
 import java.util.Collections;
+import java.util.List;
 
 public class GuiAnyaInterface extends GuiScreen {
 
@@ -48,6 +54,13 @@ public class GuiAnyaInterface extends GuiScreen {
     // Підписи для тултіпів у тому ж порядку, що й іконки/таби нижче
     private static final String[] TAB_TOOLTIPS = { "Inventory", "Clothing", "Stats" };
 
+    // ==================== ВКЛАДКА ІНВЕНТАРЯ ====================
+
+    private static final int INV_COLUMNS = 9;
+    private static final int INV_ROWS = 3;
+    private static final int INV_SLOT_SIZE = 18;
+    private static final int INV_MARGIN_TOP = 60;
+
     private enum Tab { INVENTORY, CLOTHES, STATS }
 
     private Tab currentTab = Tab.CLOTHES;
@@ -82,6 +95,10 @@ public class GuiAnyaInterface extends GuiScreen {
 
         this.drawHearts(progress);
         this.drawSideIcons(mouseX, mouseY, progress);
+
+        if (this.currentTab == Tab.INVENTORY) {
+            this.drawInventoryTab(mouseX, mouseY);
+        }
 
         super.drawScreen(mouseX, mouseY, partialTicks);
     }
@@ -163,6 +180,66 @@ public class GuiAnyaInterface extends GuiScreen {
                 && mouseY >= iconY && mouseY <= iconY + SIDE_ICON_SIZE;
     }
 
+    /**
+     * Малює сітку 9x3 слотів з вмістом ItemStackHandler-а Ані.
+     * Клік по слоту з предметом обробляється в mouseClicked -> handleInventoryClick.
+     */
+    private void drawInventoryTab(int mouseX, int mouseY) {
+        ItemStackHandler inv = this.anya.getInventory();
+        int slots = inv.getSlots();
+
+        int gridWidth = INV_COLUMNS * INV_SLOT_SIZE;
+        int gridHeight = INV_ROWS * INV_SLOT_SIZE;
+        int startX = (this.width - gridWidth) / 2;
+        int startY = INV_MARGIN_TOP;
+
+        // Фон панелі під слотами
+        this.drawRect(startX - 8, startY - 8, startX + gridWidth + 8, startY + gridHeight + 8, 0xC0101010);
+
+        RenderItem itemRender = this.mc.getRenderItem();
+        ItemStack hoveredStack = ItemStack.EMPTY;
+
+        for (int i = 0; i < slots; i++) {
+            int col = i % INV_COLUMNS;
+            int row = i / INV_COLUMNS;
+            int x = startX + col * INV_SLOT_SIZE;
+            int y = startY + row * INV_SLOT_SIZE;
+
+            boolean hovered = mouseX >= x && mouseX < x + INV_SLOT_SIZE
+                    && mouseY >= y && mouseY < y + INV_SLOT_SIZE;
+
+            int slotColor = hovered ? 0x80FFFFFF : 0x80000000;
+            this.drawRect(x, y, x + INV_SLOT_SIZE - 1, y + INV_SLOT_SIZE - 1, slotColor);
+
+            ItemStack stack = inv.getStackInSlot(i);
+            if (!stack.isEmpty()) {
+                RenderHelper.enableGUIStandardItemLighting();
+                GlStateManager.enableDepth();
+                itemRender.renderItemAndEffectIntoGUI(stack, x + 1, y + 1);
+                itemRender.renderItemOverlayIntoGUI(this.fontRenderer, stack, x + 1, y + 1, null);
+                RenderHelper.disableStandardItemLighting();
+
+                if (hovered) {
+                    hoveredStack = stack;
+                }
+            }
+        }
+
+        if (!hoveredStack.isEmpty()) {
+            this.drawItemTooltip(hoveredStack, mouseX, mouseY);
+        }
+    }
+
+    private void drawItemTooltip(ItemStack stack, int mouseX, int mouseY) {
+        List<String> tooltip = stack.getTooltip(
+                this.mc.player,
+                this.mc.gameSettings.advancedItemTooltips
+                        ? net.minecraft.client.util.ITooltipFlag.TooltipFlags.ADVANCED
+                        : net.minecraft.client.util.ITooltipFlag.TooltipFlags.NORMAL
+        );
+        this.drawHoveringText(tooltip, mouseX, mouseY);
+    }
+
     @Override
     protected void mouseClicked(int mouseX, int mouseY, int mouseButton) throws IOException {
         super.mouseClicked(mouseX, mouseY, mouseButton);
@@ -177,10 +254,40 @@ public class GuiAnyaInterface extends GuiScreen {
             if (this.isMouseOverIcon(mouseX, mouseY, targetX, y)) {
                 this.currentTab = tabs[i];
                 this.playClickSound();
-                // TODO: тут пізніше підключимо реальне перемикання вмісту вкладки
-                break;
+                return;
             }
         }
+
+        if (this.currentTab == Tab.INVENTORY) {
+            this.handleInventoryClick(mouseX, mouseY);
+        }
+    }
+
+    /**
+     * Клік по предмету у вкладці "Інвентар" - Аня викидає його на землю.
+     * Забрати напряму в руку не можна, це навмисне обмеження.
+     */
+    private void handleInventoryClick(int mouseX, int mouseY) {
+        int gridWidth = INV_COLUMNS * INV_SLOT_SIZE;
+        int gridHeight = INV_ROWS * INV_SLOT_SIZE;
+        int startX = (this.width - gridWidth) / 2;
+        int startY = INV_MARGIN_TOP;
+
+        if (mouseX < startX || mouseX >= startX + gridWidth
+                || mouseY < startY || mouseY >= startY + gridHeight) {
+            return;
+        }
+
+        int col = (mouseX - startX) / INV_SLOT_SIZE;
+        int row = (mouseY - startY) / INV_SLOT_SIZE;
+        int slot = row * INV_COLUMNS + col;
+
+        ItemStackHandler inv = this.anya.getInventory();
+        if (slot < 0 || slot >= inv.getSlots()) return;
+        if (inv.getStackInSlot(slot).isEmpty()) return;
+
+        AnyaNetwork.CHANNEL.sendToServer(new PacketDropItemFromAnya(this.anya.getEntityId(), slot));
+        this.playClickSound();
     }
 
     private void playClickSound() {
@@ -203,4 +310,4 @@ public class GuiAnyaInterface extends GuiScreen {
     public boolean doesGuiPauseGame() {
         return false;
     }
-}
+                                                                    }
