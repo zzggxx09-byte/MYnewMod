@@ -5,11 +5,16 @@ import com.anyamod.entity.ai.EntityAIEyeContact;
 import com.anyamod.entity.ai.EntityAIFreezeForGui;
 import com.anyamod.entity.ai.EntityAISeekShelterFromRain;
 import com.anyamod.init.ModSounds;
+import com.anyamod.network.AnyaNetwork;
+import com.anyamod.network.PacketSyncAnyaInventory;
 import net.minecraft.entity.EntityCreature;
 import net.minecraft.entity.SharedMonsterAttributes;
 import net.minecraft.entity.ai.*;
+import net.minecraft.entity.item.EntityItem;
 import net.minecraft.entity.monster.EntityMob;
 import net.minecraft.entity.player.EntityPlayer;
+import net.minecraft.entity.player.EntityPlayerMP;
+import net.minecraft.item.ItemStack;
 import net.minecraft.nbt.NBTTagCompound;
 import net.minecraft.network.datasync.DataParameter;
 import net.minecraft.network.datasync.DataSerializers;
@@ -19,6 +24,7 @@ import net.minecraft.util.EnumHand;
 import net.minecraft.util.SoundEvent;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.world.World;
+import net.minecraftforge.items.ItemStackHandler;
 import software.bernie.geckolib3.core.IAnimatable;
 import software.bernie.geckolib3.core.PlayState;
 import software.bernie.geckolib3.core.builder.AnimationBuilder;
@@ -61,12 +67,19 @@ public class EntityAnya extends EntityCreature implements IAnimatable {
     private static final String NBT_HOME_Z = "anyaHomeZ";
     private static final String NBT_HAS_HOME = "anyaHasHome";
     private static final String NBT_IS_DEAD_FOREVER = "anyaIsDeadForever";
+    private static final String NBT_INVENTORY = "anyaInventory";
 
     private BlockPos homePos;
     private boolean hasHome = false;
     private boolean isDeadForever = false;
 
     private EntityPlayer guiViewer;
+
+    // ==================== ІНВЕНТАР ====================
+
+    private static final int INVENTORY_SIZE = 27;
+
+    private final ItemStackHandler inventory = new ItemStackHandler(INVENTORY_SIZE);
 
     // ==================== КОНСТРУКТОР ====================
 
@@ -230,10 +243,74 @@ public class EntityAnya extends EntityCreature implements IAnimatable {
 
     public void setGuiViewer(EntityPlayer viewer) {
         this.guiViewer = viewer;
+        if (viewer != null) {
+            // Одразу відправляємо актуальний вміст інвентаря тому, хто щойно відкрив GUI
+            this.syncInventoryToViewer();
+        }
     }
 
     public EntityPlayer getGuiViewer() {
         return this.guiViewer;
+    }
+
+    // ==================== ІНВЕНТАР ====================
+
+    public ItemStackHandler getInventory() {
+        return this.inventory;
+    }
+
+    /**
+     * Намагається покласти предмет у перший вільний/сумісний слот.
+     * Повертає залишок, який не вмістився (ItemStack.EMPTY, якщо влізло все).
+     */
+    public ItemStack insertItem(ItemStack stack) {
+        ItemStack remaining = stack;
+        for (int i = 0; i < this.inventory.getSlots() && !remaining.isEmpty(); i++) {
+            remaining = this.inventory.insertItem(i, remaining, false);
+        }
+        return remaining;
+    }
+
+    /**
+     * Викидає предмет з вказаного слота на землю в бік гравця (towardsPlayer може бути null).
+     */
+    public void dropItem(int slot, EntityPlayer towardsPlayer) {
+        if (this.world.isRemote) return;
+        if (slot < 0 || slot >= this.inventory.getSlots()) return;
+
+        ItemStack stack = this.inventory.extractItem(slot, this.inventory.getSlotLimit(slot), false);
+        if (stack.isEmpty()) return;
+
+        EntityItem entityItem = new EntityItem(this.world, this.posX, this.posY + 0.5D, this.posZ, stack);
+
+        if (towardsPlayer != null) {
+            double dx = towardsPlayer.posX - this.posX;
+            double dz = towardsPlayer.posZ - this.posZ;
+            double dist = Math.sqrt(dx * dx + dz * dz);
+            if (dist > 0.001D) {
+                entityItem.motionX = (dx / dist) * 0.3D;
+                entityItem.motionZ = (dz / dist) * 0.3D;
+            }
+        }
+        entityItem.motionY = 0.25D;
+        entityItem.setPickupDelay(10);
+
+        this.world.spawnEntity(entityItem);
+
+        this.syncInventoryToViewer();
+    }
+
+    /**
+     * Шле поточний вміст інвентаря гравцю, який зараз тримає GUI цієї Ані відкритим.
+     */
+    public void syncInventoryToViewer() {
+        if (this.world.isRemote) return;
+        if (this.guiViewer instanceof EntityPlayerMP) {
+            AnyaNetwork.CHANNEL.sendTo(
+                    new PacketSyncAnyaInventory(this.getEntityId(), this.inventory),
+                    (EntityPlayerMP) this.guiViewer
+            );
+        }
     }
 
     // ==================== NBT ЗБЕРЕЖЕННЯ ====================
@@ -254,6 +331,10 @@ public class EntityAnya extends EntityCreature implements IAnimatable {
         }
 
         this.isDeadForever = compound.getBoolean(NBT_IS_DEAD_FOREVER);
+
+        if (compound.hasKey(NBT_INVENTORY)) {
+            this.inventory.deserializeNBT(compound.getCompoundTag(NBT_INVENTORY));
+        }
     }
 
     @Override
@@ -270,6 +351,8 @@ public class EntityAnya extends EntityCreature implements IAnimatable {
         }
 
         compound.setBoolean(NBT_IS_DEAD_FOREVER, this.isDeadForever);
+
+        compound.setTag(NBT_INVENTORY, this.inventory.serializeNBT());
     }
 
     // ==================== АНІМАЦІЯ (GeckoLib) ====================
@@ -292,4 +375,5 @@ public class EntityAnya extends EntityCreature implements IAnimatable {
     public AnimationFactory getFactory() {
         return this.factory;
     }
-}
+    }
+                           
